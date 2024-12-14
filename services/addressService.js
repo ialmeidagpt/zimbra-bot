@@ -1,7 +1,7 @@
 import * as soapService from './soapService.js';
 
-const greaterThanCounter = process.env.COUNT;
-const knownEmailServices = ['google.com', 'outlook.com', 'microsoft.com', 'hotmail.com', 'yahoo.com'];
+const greaterThanCounter = process.env.SPAM_THRESHOLD;
+const knownEmailServices = (process.env.KNOWN_EMAIL_SERVICES || '').split(',');
 
 async function bloquearConta(email) {
   try {
