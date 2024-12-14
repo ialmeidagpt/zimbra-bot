@@ -1,0 +1,10 @@
+services:
+  zimbra:
+    container_name: zimbra-bot-mta
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - .:/usr/app
+    env_file: .env
+    restart: unless-stopped
