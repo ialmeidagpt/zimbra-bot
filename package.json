@@ -6,7 +6,8 @@
   "main": "app.js",
   "scripts": {
     "start": "node app",
-    "service:docker": "docker compose up -d --build"
+    "service:docker": "docker compose up -d --build",
+    "service:dockerclear": "docker container prune -f && docker image prune -f && docker network prune -f && docker builder prune -f"
   },
   "keywords": [],
   "author": "https://github.com/isaacgalmeida/",
