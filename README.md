@@ -79,6 +79,12 @@ Para executar o projeto:
 node app.js
 ````
 
+ou
+
+```bash
+npm run service:docker
+```
+
 O script irá:
 
 - Obter um token de autenticação via SOAP.
@@ -87,22 +93,10 @@ O script irá:
 - Executar ações (bloqueio, adição de observação, redefinição de senha) quando necessário.
 - Logar as informações e enviar mensagens via Telegram (caso esteja configurado no `soapService`).
 
-## Manutenção e Limpeza de Código
-
-Este projeto foi refatorado para separar responsabilidades. Os principais pontos da refatoração incluem:
-
-- `app.js`: Agora é o ponto de entrada, mantendo o código mais limpo.
-- `mainController.js`: Centraliza a lógica do fluxo principal.
-- `fileService.js`: Responsável pelo acesso ao arquivo JSON.
-- `addressService.js`: Lida com a lógica de filtragem de IPs, identificação de serviços conhecidos, bloqueio e observações.
-- `soapService.js` e `certService.js`: Mantêm a lógica específica de serviços externos.
-
-Dessa forma, o código é mais fácil de manter, testar e evoluir.
-
 ## Contribuições
 
 Sinta-se à vontade para abrir issues e enviar PRs com correções, melhorias e novas funcionalidades.
 
 ## Licença
 
-Este projeto está sob a licença MIT. Veja o arquivo [LICENSE](LICENSE) para mais informações.
+Este projeto está sob a licença MIT.
