@@ -59,7 +59,7 @@ No arquivo `.env` você deverá definir as seguintes variáveis:
 
 **Exemplo de arquivo `.env`**:
 
-````env
+```env
 TOKEN_ID=256555:ABC-DEF1234ghIkl-zyx57W2v1u123ew11
 CHAT_ID=15854321
 WSDL_ZIMBRA=https://192.168.0.10:7071/service/admin/soap
@@ -70,6 +70,7 @@ SPAM_THRESHOLD=60
 SITES=email1@dominio.com,email2@dominio.com
 TOKEN_IPINFO=seu_token_de_ipinfo
 KNOWN_EMAIL_SERVICES=google.com,outlook.com,microsoft.com,hotmail.com,yahoo.com,live.com
+```
 
 ## Execução
 
