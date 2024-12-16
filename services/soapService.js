@@ -2,6 +2,7 @@ import "dotenv/config";
 import axios from "axios";
 import xml2js from "xml2js";
 import { Telegraf } from "telegraf";
+import https from "https"; 
 
 // Telegram
 const TOKEN = process.env.TOKEN_ID;
@@ -19,7 +20,7 @@ export async function sendTelegramMessage(message) {
   }
 }
 
-// Configuração global para as requisições
+// Configuração global para requisições SOAP
 const config = {
   method: "post",
   maxBodyLength: Infinity,
@@ -28,7 +29,7 @@ const config = {
     SOAPAction: '"#POST"',
     "Content-Type": "application/xml",
   },
-  // Ignorar a verificação do certificado SSL em desenvolvimento
+  // Configurar para ignorar certificados autoassinados em ambiente de testes
   httpsAgent: new https.Agent({
     rejectUnauthorized: false,
   }),
