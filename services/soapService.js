@@ -1,7 +1,7 @@
-import 'dotenv/config'
-import axios from 'axios';
-import xml2js from 'xml2js'
-import { Telegraf } from 'telegraf';
+import "dotenv/config";
+import axios from "axios";
+import xml2js from "xml2js";
+import { Telegraf } from "telegraf";
 
 // Telegram
 const TOKEN = process.env.TOKEN_ID;
@@ -11,30 +11,41 @@ const bot = new Telegraf(TOKEN);
 export async function sendTelegramMessage(message) {
   try {
     const formattedMessage = `*Monitoramento Fila do Zimbra* ${process.env.HOSTNAME}\n\n${message}`;
-    await bot.telegram.sendMessage(CHAT_ID, formattedMessage, { parse_mode: 'Markdown' });
+    await bot.telegram.sendMessage(CHAT_ID, formattedMessage, {
+      parse_mode: "Markdown",
+    });
   } catch (error) {
-    console.error('Erro ao enviar mensagem para o Telegram:', error);
+    console.error("Erro ao enviar mensagem para o Telegram:", error);
   }
 }
 
 // Configuração global para as requisições
 const config = {
-  method: 'post',
+  method: "post",
   maxBodyLength: Infinity,
   url: process.env.WSDL_ZIMBRA,
   headers: {
-    'SOAPAction': '"#POST"',
-    'Content-Type': 'application/xml',
-  }
+    SOAPAction: '"#POST"',
+    "Content-Type": "application/xml",
+  },
+  // Ignorar a verificação do certificado SSL em desenvolvimento
+  httpsAgent: new https.Agent({
+    rejectUnauthorized: false,
+  }),
 };
 
 export async function getGeolocation(ip, retries = 3) {
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
-      const response = await axios.get(`https://ipinfo.io/${ip}?token=86e8e6cb738beb`);
+      const response = await axios.get(
+        `https://ipinfo.io/${ip}?token=86e8e6cb738beb`
+      );
       return response.data;
     } catch (error) {
-      console.error(`Erro ao obter geolocalização para o IP ${ip} (tentativa ${attempt} de ${retries}):`, error);
+      console.error(
+        `Erro ao obter geolocalização para o IP ${ip} (tentativa ${attempt} de ${retries}):`,
+        error
+      );
 
       // Verifica se é a última tentativa
       if (attempt === retries) {
@@ -48,7 +59,8 @@ export async function getGeolocation(ip, retries = 3) {
 
 function generateRandomPassword() {
   const length = Math.floor(Math.random() * (12 - 8 + 1)) + 8;
-  const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+~`|}{[]:;?><,./-=";
+  const charset =
+    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+~`|}{[]:;?><,./-=";
   let password = "";
   for (let i = 0, n = charset.length; i < length; ++i) {
     password += charset.charAt(Math.floor(Math.random() * n));
@@ -61,7 +73,7 @@ export async function sendSoapRequest(data) {
   try {
     const response = await axios.request({
       ...config,
-      data: data
+      data: data,
     });
     const parsedResponse = await xml2js.parseStringPromise(response.data);
     return parsedResponse;
@@ -69,7 +81,7 @@ export async function sendSoapRequest(data) {
     console.log(error);
     const errorMessage = formatError(error);
     await handleError(errorMessage);
-    throw new Error('SOAP request failed');
+    throw new Error("SOAP request failed");
   }
 }
 
@@ -86,13 +98,16 @@ export async function makeAuthRequest() {
 
   try {
     const parsedResponse = await sendSoapRequest(authData);
-    const authToken = parsedResponse['soap:Envelope']['soap:Body'][0]['AuthResponse'][0]['authToken'][0];
+    const authToken =
+      parsedResponse["soap:Envelope"]["soap:Body"][0]["AuthResponse"][0][
+        "authToken"
+      ][0];
     return authToken;
   } catch (error) {
     console.log(error);
     const errorMessage = formatError(error);
     await handleError(errorMessage);
-    throw new Error('Authentication failed');
+    throw new Error("Authentication failed");
   }
 }
 
@@ -112,7 +127,9 @@ export async function getAccountInfo(authToken, email) {
 
   try {
     const parsedResponse = await sendSoapRequest(data);
-    const zimbraId = parsedResponse['soap:Envelope']['soap:Body'][0]['GetAccountInfoResponse'][0]['a'].find(attr => attr['$'].n === 'zimbraId')['_'];
+    const zimbraId = parsedResponse["soap:Envelope"]["soap:Body"][0][
+      "GetAccountInfoResponse"
+    ][0]["a"].find((attr) => attr["$"].n === "zimbraId")["_"];
     return zimbraId;
   } catch (error) {
     const errorMessage = formatError(error);
@@ -136,7 +153,10 @@ export async function setPassword(authToken, zimbraId) {
 
   try {
     const parsedResponse = await sendSoapRequest(data);
-    const message = parsedResponse['soap:Envelope']?.['soap:Body']?.[0]?.['GetMailQueueResponse']?.[0]?.['message']?.[0] || newPassword;
+    const message =
+      parsedResponse["soap:Envelope"]?.["soap:Body"]?.[0]?.[
+        "GetMailQueueResponse"
+      ]?.[0]?.["message"]?.[0] || newPassword;
     return message;
   } catch (error) {
     const errorMessage = formatError(error);
@@ -166,7 +186,10 @@ export async function getMailQueue(authToken, serverName) {
 
   try {
     const parsedResponse = await sendSoapRequest(data);
-    const mailQueue = parsedResponse['soap:Envelope']['soap:Body'][0]['GetMailQueueResponse'][0]['server'][0]['queue'][0];
+    const mailQueue =
+      parsedResponse["soap:Envelope"]["soap:Body"][0][
+        "GetMailQueueResponse"
+      ][0]["server"][0]["queue"][0];
     return mailQueue;
   } catch (error) {
     const errorMessage = formatError(error);
@@ -181,12 +204,12 @@ export function formatError(error) {
 
   // Extraindo partes relevantes do erro
   const shortError = {
-    message: cause.message || 'Mensagem não disponível',
-    errno: cause.errno || 'N/A',
-    code: cause.code || 'N/A',
-    syscall: cause.syscall || 'N/A',
-    address: cause.address || 'N/A',
-    port: cause.port || 'N/A',
+    message: cause.message || "Mensagem não disponível",
+    errno: cause.errno || "N/A",
+    code: cause.code || "N/A",
+    syscall: cause.syscall || "N/A",
+    address: cause.address || "N/A",
+    port: cause.port || "N/A",
   };
 
   // Formatando a mensagem de erro para o Telegram
@@ -218,8 +241,10 @@ export async function handleError(error) {
   }
 
   // Verificar se a mensagem já foi enviada nos últimos 10 minutos
-  if (recentMessages.has(causeMessage) || errorMessage.includes('N/A')) {
-    console.log('Mensagem repetida ou indefinida detectada, não enviando via Telegram');
+  if (recentMessages.has(causeMessage) || errorMessage.includes("N/A")) {
+    console.log(
+      "Mensagem repetida ou indefinida detectada, não enviando via Telegram"
+    );
     return;
   }
 
@@ -247,13 +272,16 @@ export async function setAccountStatusBlocked(authToken, zimbraId) {
 
   try {
     const parsedResponse = await sendSoapRequest(data);
-    const result = parsedResponse['soap:Envelope']['soap:Body'][0]['ModifyAccountResponse'];
-    return result ? 'Status do email alterado para bloqueado com sucesso!' : 'Falha ao alterar o status do email.';
+    const result =
+      parsedResponse["soap:Envelope"]["soap:Body"][0]["ModifyAccountResponse"];
+    return result
+      ? "Status do email alterado para bloqueado com sucesso!"
+      : "Falha ao alterar o status do email.";
   } catch (error) {
     const errorMessage = formatError(error);
     await handleError(errorMessage);
     console.log(error);
-    throw new Error('Falha ao bloquear o status da conta.');
+    throw new Error("Falha ao bloquear o status da conta.");
   }
 }
 
@@ -277,9 +305,11 @@ export async function addObservation(authToken, zimbraId, newObservation) {
 
     // Buscar o atributo "zimbraNotes" no array de atributos
     const attributes =
-      accountResponse?.['soap:Envelope']?.['soap:Body']?.[0]?.['GetAccountResponse']?.[0]?.['account']?.[0]?.['a'] || [];
+      accountResponse?.["soap:Envelope"]?.["soap:Body"]?.[0]?.[
+        "GetAccountResponse"
+      ]?.[0]?.["account"]?.[0]?.["a"] || [];
     const existingNotes =
-      attributes.find(attr => attr['$']?.n === 'zimbraNotes')?._ || '';
+      attributes.find((attr) => attr["$"]?.n === "zimbraNotes")?._ || "";
 
     // Etapa 2: Concatenar a nova observação com as existentes
     const updatedNotes = `${existingNotes}\n${newObservation}`.trim();
@@ -300,13 +330,16 @@ export async function addObservation(authToken, zimbraId, newObservation) {
     </soap:Envelope>`;
 
     const modifyResponse = await sendSoapRequest(modifyAccountData);
-    const result = modifyResponse['soap:Envelope']['soap:Body'][0]['ModifyAccountResponse'];
+    const result =
+      modifyResponse["soap:Envelope"]["soap:Body"][0]["ModifyAccountResponse"];
 
-    return result ? 'Observação adicionada com sucesso!' : 'Falha ao adicionar observação.';
+    return result
+      ? "Observação adicionada com sucesso!"
+      : "Falha ao adicionar observação.";
   } catch (error) {
     const errorMessage = formatError(error);
     await handleError(errorMessage);
     console.log(error);
-    throw new Error('Falha ao adicionar observação.');
+    throw new Error("Falha ao adicionar observação.");
   }
 }
