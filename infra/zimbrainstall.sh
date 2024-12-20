@@ -20,6 +20,8 @@ DEFAULT_ZIMBRA_SERVERIP="172.16.1.20"
 DEFAULT_TIMEZONE="America/Sao_Paulo"
 # Define a variável para a versão do Ubuntu (1 para 18.04, 2 para 20.04)
 UBUNTU_VERSION="1"
+# Define a senha do administrador Zimbra
+ADMIN_PASSWORD="MyAdminPassw0rd"
 
 # Step 1: Install Prerequisites
 echo -e "\n[INFO]: Installing system prerequisites..."
@@ -194,14 +196,24 @@ Y
 N
 N
 Y
+Y
 EOF
 
-# Run Zimbra installer with automatic answers
-echo "Starting Zimbra installation..."
+# Inicia o instalador com as respostas automáticas
+echo -e "\n[INFO]: Starting Zimbra installer..."
 ./install.sh < /tmp/zimbra-install-answers
 
-if [ $? -ne 0 ]; then
-    echo "Error: Zimbra installation failed. Check the logs."
+# Configuração adicional após a instalação
+if [ $? -eq 0 ]; then
+    echo -e "\n[INFO]: Configuring admin account password..."
+    su - zimbra -c "zmprov sp admin@$DEFAULT_ZIMBRA_DOMAIN $ADMIN_PASSWORD"
+
+    echo -e "\n[INFO]: Installation and configuration completed successfully."
+    echo "Admin Console: https://$ZIMBRA_HOSTNAME.$ZIMBRA_DOMAIN:7071"
+    echo "Webmail: https://$ZIMBRA_HOSTNAME.$ZIMBRA_DOMAIN"
+    echo "Admin Password: $ADMIN_PASSWORD"
+else
+    echo -e "\n[ERROR]: Zimbra installation failed. Check logs for details."
     exit 1
 fi
 
