@@ -13,6 +13,12 @@ set -o nounset  # Treat unset variables as an error
 
 HORAINICIAL=$(date +%T)
 
+# Default values
+DEFAULT_ZIMBRA_DOMAIN="example.com"
+DEFAULT_ZIMBRA_HOSTNAME="mail"
+DEFAULT_ZIMBRA_SERVERIP="172.16.1.20"
+DEFAULT_TIMEZONE="America/Sao_Paulo"
+
 # Step 1: Install Prerequisites
 echo -e "\n[INFO]: Installing system prerequisites..."
 sudo apt update && sudo apt -y full-upgrade
@@ -21,12 +27,19 @@ sudo apt install -y git net-tools netcat-openbsd libidn11 libpcre3 libgmp10 libe
 # Disable any running mail services
 sudo systemctl disable --now postfix 2>/dev/null
 
-# Step 2: Input required variables
+# Step 2: Input required variables or use defaults
 echo ""
-read -p "Input Zimbra Base Domain (e.g., example.com): " ZIMBRA_DOMAIN
-read -p "Input Zimbra Mail Server hostname (first part of FQDN, e.g., mail): " ZIMBRA_HOSTNAME
-read -p "Input Zimbra Server IP Address: " ZIMBRA_SERVERIP
-read -p "Input your timezone (e.g., America/Sao_Paulo): " TimeZone
+read -p "Input Zimbra Base Domain (default: $DEFAULT_ZIMBRA_DOMAIN): " ZIMBRA_DOMAIN
+ZIMBRA_DOMAIN=${ZIMBRA_DOMAIN:-$DEFAULT_ZIMBRA_DOMAIN}
+
+read -p "Input Zimbra Mail Server hostname (default: $DEFAULT_ZIMBRA_HOSTNAME): " ZIMBRA_HOSTNAME
+ZIMBRA_HOSTNAME=${ZIMBRA_HOSTNAME:-$DEFAULT_ZIMBRA_HOSTNAME}
+
+read -p "Input Zimbra Server IP Address (default: $DEFAULT_ZIMBRA_SERVERIP): " ZIMBRA_SERVERIP
+ZIMBRA_SERVERIP=${ZIMBRA_SERVERIP:-$DEFAULT_ZIMBRA_SERVERIP}
+
+read -p "Input your timezone (default: $DEFAULT_TIMEZONE): " TimeZone
+TimeZone=${TimeZone:-$DEFAULT_TIMEZONE}
 echo ""
 
 # Step 3: Configure /etc/hosts file
