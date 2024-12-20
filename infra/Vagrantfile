@@ -1,54 +1,28 @@
-# Função para carregar variáveis do arquivo .env
-def load_env(file)
-  return {} unless File.exist?(file)
-  File.read(file).split("\n").map { |line| line.split("=", 2) }.to_h
-end
-
-# Carregar variáveis do .env
-env = load_env(".env")
-
 Vagrant.configure("2") do |config|
+  # Configuração da box do Ubuntu 18.04
   config.vm.box = "generic/ubuntu1804"
   config.vm.box_version = "4.3.12"
 
-  # Sincronizar a pasta atual do host com a VM em /vagrant
-  config.vm.synced_folder ".", "/vagrant"
-
-  # Define o hostname
-  config.vm.hostname = env["HOSTNAME"] || "zimbra"
-
   # Configura rede privada com IP estático
-  config.vm.network "private_network", ip: env["SERVER_IP"]
-
+  config.vm.network "private_network", ip: "172.16.1.20"
+  
   # Configuração de recursos da máquina virtual
   config.vm.provider "virtualbox" do |vb|
     vb.memory = "12000"
     vb.cpus = 3
   end
 
-  # Provisionamento do Bind9
+  # Provisionar o script zimbrainstall.sh na máquina virtual
+  config.vm.provision "file", source: "./zimbrainstall.sh", destination: "/home/vagrant/zimbrainstall.sh"
+
+  # Permitir execução do script
   config.vm.provision "shell", inline: <<-SHELL
-  # Instalar utilitário dos2unix se não estiver disponível
-  if ! command -v dos2unix &> /dev/null; then
-    apt-get update
-    apt-get install -y dos2unix
-  fi
+    chmod +x /home/vagrant/zimbrainstall.sh
+  SHELL
 
-  # Converter bind.sh para formato Unix
-  dos2unix /vagrant/bind.sh
-
-  # Detectar interface de rede
-  INTERFACE=$(ip -o link show | awk -F': ' '{print $2}' | grep -v lo | grep -v vboxnet | tail -n 1)
-
-  # Executar o script
-  /vagrant/bind.sh "#{env['HOSTNAME']}" "#{env['DOMAIN']}" "$INTERFACE"
-SHELL
-
-  # Provisionamento do Zimbra (opcional)
-  config.vm.provision "shell", path: "zimbra.sh", args: [
-	 env["SERVER_IP"],
-     env["HOSTNAME"],
-     env["DOMAIN"],
-     env["ZIMBRA_URL"]
-   ]
+  # Configurar mensagem após iniciar
+  config.vm.provision "shell", inline: <<-SHELL, run: "always"
+    echo "Bem-vindo! O script 'zimbrainstall.sh' está em /home/vagrant. Para executá-lo, digite:"
+    echo "sudo /home/vagrant/zimbrainstall.sh"
+  SHELL
 end
