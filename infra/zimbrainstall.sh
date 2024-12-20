@@ -18,6 +18,8 @@ DEFAULT_ZIMBRA_DOMAIN="zimbra.test"
 DEFAULT_ZIMBRA_HOSTNAME="mail"
 DEFAULT_ZIMBRA_SERVERIP="172.16.1.20"
 DEFAULT_TIMEZONE="America/Sao_Paulo"
+# Define a variável para a versão do Ubuntu (1 para 18.04, 2 para 20.04)
+UBUNTU_VERSION="1"
 
 # Step 1: Install Prerequisites
 echo -e "\n[INFO]: Installing system prerequisites..."
@@ -155,21 +157,17 @@ dig MX $ZIMBRA_DOMAIN @127.0.0.1 +short
 
 # Step 7: Download and Install Zimbra
 echo -e "\n[INFO]: Preparing to install Zimbra..."
-echo "Select your Ubuntu version:"
-echo "1) Ubuntu 18.04"
-echo "2) Ubuntu 20.04"
-read -p "Enter your choice (1 or 2): " ubuntu_version
 
-if [[ "$ubuntu_version" == "1" ]]; then
+if [[ "$UBUNTU_VERSION" == "1" ]]; then
     echo -e "\n[INFO]: Downloading Zimbra for Ubuntu 18.04..."
     cd ~/
     wget https://files.zimbra.com/downloads/8.8.15_GA/zcs-8.8.15_GA_3869.UBUNTU18_64.20190918004220.tgz
-elif [[ "$ubuntu_version" == "2" ]]; then
+elif [[ "$UBUNTU_VERSION" == "2" ]]; then
     echo -e "\n[INFO]: Downloading Zimbra for Ubuntu 20.04..."
     cd ~/
     wget https://files.zimbra.com/downloads/8.8.15_GA/zcs-8.8.15_GA_4179.UBUNTU20_64.20211118033954.tgz
 else
-    echo -e "\n[ERROR]: Invalid choice. Exiting."
+    echo -e "\n[ERROR]: Invalid Ubuntu version specified in the script. Exiting."
     exit 1
 fi
 
