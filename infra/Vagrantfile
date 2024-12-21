@@ -21,7 +21,7 @@ Vagrant.configure("2") do |config|
   # Configuração inicial
   config.vm.provision "shell", inline: <<-SHELL
     # Instala dependências necessárias
-    sudo apt-get install -y dos2unix || { echo "[ERROR]: Failed to install dependencies. Exiting."; exit 1; }
+    sudo apt-get install -y dos2unix || { echo -e "\033[31m[ERROR]: Failed to install dependencies. Exiting.\033[0m"; exit 1; }
 
     # Corrige final de linha e permissões no script de instalação
     dos2unix /home/vagrant/zimbrainstall.sh
@@ -30,8 +30,8 @@ Vagrant.configure("2") do |config|
 
   # Mensagem após inicialização
   config.vm.provision "shell", inline: <<-SHELL, run: "always"
-    echo "O script 'zimbrainstall.sh' foi executado automaticamente."
-    echo "Se necessário, você pode verificar os logs ou executar novamente:"
-    echo "sudo bash /home/vagrant/zimbrainstall.sh"
+    echo -e "\033[31mO script 'zimbrainstall.sh' foi executado automaticamente.\033[0m"
+    echo -e "\033[31mSe necessário, você pode verificar os logs ou executar novamente:\033[0m"
+    echo -e "\033[31msudo bash /home/vagrant/zimbrainstall.sh\033[0m"
   SHELL
 end
