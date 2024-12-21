@@ -114,11 +114,14 @@ O projeto inclui uma pasta `infra/` com arquivos de configuração do Vagrant e 
 
    ```bash
    vagrant up && vagrant ssh
+   sudo bash /home/vagrant/zimbrainstall.sh
    ```
 
    Isso criará uma máquina virtual com o Zimbra instalado e configurado para testes locais.
 
 3. Após o término da instalação, o Zimbra estará acessível no IP configurado (ex: `https://172.16.1.20:7071`).
+
+4. Para destruir a VM execute: `bash vagrant destroy -f`
 
 ### Testes Locais
 
