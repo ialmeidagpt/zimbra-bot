@@ -15,6 +15,11 @@ project/
 │  ├─ fileService.js         # Serviço para operações de leitura/escrita no arquivo JSON
 │  ├─ addressService.js      # Lógica de tratamento de endereços, IPs e bloqueio de contas
 │  └─ ...                    # Outros serviços (se necessário)
+├─ infra/                    # Pasta para subir um ambiente Zimbra de teste
+│  ├─ Vagrantfile            # Arquivo de configuração do Vagrant para criar o ambiente
+│  ├─ zimbrainstall.sh       # Script de instalação automatizada do Zimbra
+│  ├─ zimbra-pubkey.asc      # Chave pública necessária para instalação
+│  └─ zimbra_old.sh          # Script legado (opcional)
 └─ address_ip_data.json      # Arquivo JSON com o histórico de endereços e IPs
 ```
 
@@ -38,6 +43,7 @@ project/
    ```
 
 3. Instale as dependências:
+
    ```bash
    npm install
    ```
@@ -72,13 +78,59 @@ TOKEN_IPINFO=seu_token_de_ipinfo
 KNOWN_EMAIL_SERVICES=google.com,outlook.com,microsoft.com,hotmail.com,yahoo.com,live.com
 ```
 
-## Execução
+## Subir um Ambiente Zimbra Local para Testes
+
+O projeto inclui uma pasta `infra/` com arquivos de configuração do Vagrant e scripts para instalação automática do Zimbra. Isso permite criar um ambiente local de testes.
+
+### Configuração
+
+1. Certifique-se de ter o **Vagrant** e um **hipervisor** (como VirtualBox) instalados.
+
+2. Na pasta `infra/`, edite o arquivo `Vagrantfile` para definir o IP da máquina virtual:
+
+   ```ruby
+   config.vm.network "private_network", ip: "172.16.1.20"
+   ```
+
+3. No arquivo `zimbrainstall.sh`, defina as variáveis para a configuração do Zimbra:
+
+   ```bash
+   DEFAULT_ZIMBRA_DOMAIN="zimbra.test"
+   DEFAULT_ZIMBRA_HOSTNAME="mail"
+   DEFAULT_ZIMBRA_SERVERIP="172.16.1.20"
+   DEFAULT_TIMEZONE="America/Sao_Paulo"
+   UBUNTU_VERSION="1"  # Defina 1 para Ubuntu 18.04 ou 2 para Ubuntu 20.04
+   ```
+
+### Subir o Ambiente
+
+1. Acesse a pasta `infra/`:
+
+   ```bash
+   cd infra
+   ```
+
+2. Execute o Vagrant para iniciar a máquina virtual e instalar o Zimbra:
+
+   ```bash
+   vagrant up && vagrant ssh
+   ```
+
+   Isso criará uma máquina virtual com o Zimbra instalado e configurado para testes locais.
+
+3. Após o término da instalação, o Zimbra estará acessível no IP configurado (ex: `https://172.16.1.20:7071`).
+
+### Testes Locais
+
+Com o ambiente de testes rodando, você pode configurar as variáveis de ambiente do projeto para se conectar ao Zimbra local e testar as funcionalidades de monitoramento e ações em fila de emails.
+
+## Execução do Projeto
 
 Para executar o projeto:
 
 ```bash
 node app.js
-````
+```
 
 ou
 
