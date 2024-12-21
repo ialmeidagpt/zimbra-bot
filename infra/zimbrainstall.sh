@@ -11,6 +11,9 @@ set -euo pipefail
 
 HORAINICIAL=$(date +%T)
 
+# Variável para a versão do Ubuntu
+UBUNTU_VERSION="18" # Altere para "18" ou "20" conforme necessário.
+
 # Valores padrão
 DEFAULT_ZIMBRA_DOMAIN="zimbra.test"
 DEFAULT_ZIMBRA_HOSTNAME="mail"
@@ -64,63 +67,27 @@ sudo apt remove -y ntp 2>/dev/null || true
 sudo apt install -y chrony || error_exit "Failed to install chrony"
 sudo systemctl restart chrony || error_exit "Failed to restart chrony"
 
-# Step 4: Configurar Bind DNS Server
-log "Configuring Bind DNS server..."
-sudo tee /etc/bind/named.conf.options > /dev/null <<EOF
-options {
-    directory "/var/cache/bind";
-    forwarders {
-        8.8.8.8;
-        1.1.1.1;
-    };
-    dnssec-validation no;
-    listen-on-v6 { any; };
-};
-EOF
+# Step 4: Configurar chave GPG e repositório
+log "Configuring Zimbra repository..."
+if [ -f "/tmp/zimbra-pubkey.asc" ]; then
+    sudo gpg --dearmor -o /usr/share/keyrings/zimbra.gpg /tmp/zimbra-pubkey.asc || error_exit "Failed to import Zimbra GPG key"
+else
+    error_exit "Zimbra GPG key file not found at /tmp/zimbra-pubkey.asc"
+fi
 
-sudo tee /etc/bind/named.conf.local > /dev/null <<EOF
-zone "$ZIMBRA_DOMAIN" IN {
-    type master;
-    file "/etc/bind/db.$ZIMBRA_DOMAIN";
-};
-EOF
+echo "deb [signed-by=/usr/share/keyrings/zimbra.gpg arch=amd64] https://repo.zimbra.com/apt/87 bionic main" | sudo tee /etc/apt/sources.list.d/zimbra.list > /dev/null
 
-sudo tee /etc/bind/db.$ZIMBRA_DOMAIN > /dev/null <<EOF
-\$TTL 1D
-@       IN SOA  ns1.$ZIMBRA_DOMAIN. root.$ZIMBRA_DOMAIN. (
-                                0       ; serial
-                                1D      ; refresh
-                                1H      ; retry
-                                1W      ; expire
-                                3H )    ; minimum
-@               IN      NS      ns1.$ZIMBRA_DOMAIN.
-@               IN      MX      0 $ZIMBRA_HOSTNAME.$ZIMBRA_DOMAIN.
-ns1             IN      A       $ZIMBRA_SERVERIP
-$ZIMBRA_HOSTNAME IN      A       $ZIMBRA_SERVERIP
-EOF
+sudo apt update || error_exit "Failed to update package list."
 
-sudo systemctl enable bind9 || error_exit "Failed to enable Bind9"
-sudo systemctl restart bind9 || error_exit "Failed to restart Bind9"
-
-# Step 5: Desativar IPv6
-log "Disabling IPv6..."
-sudo sysctl -w net.ipv6.conf.all.disable_ipv6=1
-sudo sysctl -w net.ipv6.conf.default.disable_ipv6=1
-sudo tee -a /etc/sysctl.conf > /dev/null <<EOF
-net.ipv6.conf.all.disable_ipv6 = 1
-net.ipv6.conf.default.disable_ipv6 = 1
-EOF
-sudo sysctl -p || error_exit "Failed to persist IPv6 settings"
-
-# Step 6: Configurar chave GPG e repositório
-# Import GPG key and configure Zimbra repository
-sudo gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 9BE6ED79
-sudo gpg --export 9BE6ED79 | sudo tee /usr/share/keyrings/zimbra.gpg > /dev/null
-echo "deb [signed-by=/usr/share/keyrings/zimbra.gpg arch=amd64] https://repo.zimbra.com/apt/87 bionic main" | sudo tee /etc/apt/sources.list.d/zimbra.list
-
-# Step 7: Instalar Zimbra
+# Step 5: Instalar Zimbra
 log "Preparing to install Zimbra..."
-ZIMBRA_URL="https://files.zimbra.com/downloads/8.8.15_GA/zcs-8.8.15_GA_3869.UBUNTU18_64.20190918004220.tgz"
+if [[ "$UBUNTU_VERSION" == "18" ]]; then
+    ZIMBRA_URL="https://files.zimbra.com/downloads/8.8.15_GA/zcs-8.8.15_GA_3869.UBUNTU18_64.20190918004220.tgz"
+elif [[ "$UBUNTU_VERSION" == "20" ]]; then
+    ZIMBRA_URL="https://files.zimbra.com/downloads/8.8.15_GA/zcs-8.8.15_GA_4179.UBUNTU20_64.20211118033954.tgz"
+else
+    error_exit "Unsupported Ubuntu version. Please use '18' or '20'."
+fi
 
 if [ ! -f "zimbra.tgz" ]; then
     wget $ZIMBRA_URL -O zimbra.tgz || error_exit "Failed to download Zimbra package"
@@ -151,8 +118,7 @@ Y
 EOF
 
 log "Starting Zimbra installer..."
-#sudo ./install.sh < /tmp/zimbra-install-answers || error_exit "Zimbra installation failed"
-sudo ./install.sh
+sudo ./install.sh < /tmp/zimbra-install-answers || error_exit "Zimbra installation failed"
 
 log "Configuring Zimbra admin account..."
 su - zimbra -c "zmprov sp admin@$DEFAULT_ZIMBRA_DOMAIN $ADMIN_PASSWORD" || error_exit "Failed to configure Zimbra admin account"
