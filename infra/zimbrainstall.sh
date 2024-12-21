@@ -20,6 +20,10 @@ DEFAULT_ZIMBRA_SERVERIP="172.16.1.20"
 DEFAULT_TIMEZONE="America/Sao_Paulo"
 UBUNTU_VERSION="1"  # Defina 1 para Ubuntu 18.04 ou 2 para Ubuntu 20.04
 
+# opções do comando cut: -d (delimiter), -f (fields)
+# $0 (variável de ambiente do nome do comando)
+LOG="/var/log/$(echo $0 | cut -d'/' -f2)"
+
 # Função de log
 log() {
     echo -e "[INFO]: $1"
@@ -166,3 +170,44 @@ sleep 5
 
 log "Starting Zimbra installer..."
 sudo ./install.sh
+
+echo -e "Instalação do Zimbra Collaboration Community feito com sucesso!!!, continuando com o script...\n"
+sleep 5
+#
+echo -e "Habilitando o Serviço do Zimbra Collaboration Community, aguarde..."
+	# opção do comando: &>> (redirecionar a saída padrão)
+	systemctl enable zimbra.service &>> $LOG
+	systemctl start zimbra.service &>> $LOG
+echo -e "Serviço habilitado com sucesso!!!, continuando com o script...\n"
+sleep 5
+#
+echo -e "Verificando o Status dos Serviços do Zimbra Collaboration Community, aguarde..."
+	# opção do comando: &>> (redirecionar a saída padrão)
+	# opção do comando su: - (login), -c (command)
+	su - zimbra -c "zmcontrol status" &>> $LOG
+echo -e "Verificação do Status dos Serviços feita com sucesso!!!, continuando com o script...\n"
+sleep 5
+#
+echo -e "Verificando as portas de Conexões do Zimbra Collaboration Community, aguarde..."
+	# opção do comando netstat: -a (all), -n (numeric)
+	# portas do Zimbra: 80 (http), 25 (smtp), 110 (pop3), 143 (imap4), 443 (https), 587 (smtp), 7071 (admin)
+	netstat -an | grep '0:80\|0:25\|0:110\|0:143\|0:443\|0:587\|0:7071'
+echo -e "Portas de conexões verificadas com sucesso!!!, continuando com o script...\n"
+sleep 5
+#
+echo -e "Instalação do Zimbra Collaboration Community feita com Sucesso!!!."
+	# script para calcular o tempo gasto (SCRIPT MELHORADO, CORRIGIDO FALHA DE HORA:MINUTO:SEGUNDOS)
+	# opção do comando date: +%T (Time)
+	HORAFINAL=$(date +%T)
+	# opção do comando date: -u (utc), -d (date), +%s (second since 1970)
+	HORAINICIAL01=$(date -u -d "$HORAINICIAL" +"%s")
+	HORAFINAL01=$(date -u -d "$HORAFINAL" +"%s")
+	# opção do comando date: -u (utc), -d (date), 0 (string command), sec (force second), +%H (hour), %M (minute), %S (second), 
+	TEMPO=$(date -u -d "0 $HORAFINAL01 sec - $HORAINICIAL01 sec" +"%H:%M:%S")
+	# $0 (variável de ambiente do nome do comando)
+	echo -e "Tempo gasto para execução do script $0: $TEMPO"
+echo -e "Pressione <Enter> para concluir o processo."
+# opção do comando date: + (format), %d (day), %m (month), %Y (year 1970), %H (hour 24), %M (minute 60)
+echo -e "Fim do script $0 em: `date +%d/%m/%Y-"("%H:%M")"`\n" &>> $LOG
+read
+exit 1
