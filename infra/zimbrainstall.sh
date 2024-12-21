@@ -171,6 +171,9 @@ sleep 5
 echo -e "[INFO]: Se houver erro de DNS digite apenas o domínio: zimbra.test, por exemplo"
 sleep 3
 
+echo -e "[INFO]: Selecione a opção zimbra sotre e depois Admin Password para definir a senha. Por fim, aplica as configurações"
+sleep 3
+
 log "Starting Zimbra installer..."
 sudo ./install.sh
 
