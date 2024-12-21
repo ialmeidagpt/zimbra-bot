@@ -168,6 +168,9 @@ echo -e "[INFO]: O DNS Cache do Zimbra não é necessário quando o Bind já est
 echo -e "[INFO]: Certifique-se de selecionar 'N' (não) para evitar conflitos.\n"
 sleep 5
 
+echo -e "[INFO]: Se houver erro de DNS digite apenas o domínio: zimbra.test, por exemplo"
+sleep 3
+
 log "Starting Zimbra installer..."
 sudo ./install.sh
 
@@ -206,8 +209,18 @@ echo -e "Instalação do Zimbra Collaboration Community feita com Sucesso!!!."
 	TEMPO=$(date -u -d "0 $HORAFINAL01 sec - $HORAINICIAL01 sec" +"%H:%M:%S")
 	# $0 (variável de ambiente do nome do comando)
 	echo -e "Tempo gasto para execução do script $0: $TEMPO"
-echo -e "Pressione <Enter> para concluir o processo."
-# opção do comando date: + (format), %d (day), %m (month), %Y (year 1970), %H (hour 24), %M (minute 60)
-echo -e "Fim do script $0 em: `date +%d/%m/%Y-"("%H:%M")"`\n" &>> $LOG
-read
-exit 1
+  echo -e "Pressione <Enter> para concluir o processo."
+
+  echo -e "INFORMAÇÕES PARA ACESSO AO ZIMBRA ADMIN CONSOLE:"
+  echo -e "URL: https://${DEFAULT_ZIMBRA_HOSTNAME}.${DEFAULT_ZIMBRA_DOMAIN}:7071"
+  echo -e "Usuário: admin"
+  echo -e ""
+
+  echo -e "INFORMAÇÕES PARA ACESSO AO ZIMBRA WEBMAIL:"
+  echo -e "URL: https://${DEFAULT_ZIMBRA_HOSTNAME}.${DEFAULT_ZIMBRA_DOMAIN}"
+  echo -e "Usuário: admin"
+  echo -e ""
+
+  echo -e "Fim do script $0 em: `date +%d/%m/%Y-"("%H:%M")"`\n" &>> $LOG
+  read
+  exit 1
