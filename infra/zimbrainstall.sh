@@ -98,19 +98,20 @@ EOF
 sudo systemctl restart bind9 || error_exit "Failed to restart Bind9."
 log "Bind DNS configured successfully."
 
-# Step 5: Disable IPv6
-log "Disabling IPv6..."
-sudo tee -a /etc/sysctl.conf > /dev/null <<EOF
-net.ipv6.conf.all.disable_ipv6 = 1
-net.ipv6.conf.default.disable_ipv6 = 1
-EOF
+# Step 5: Disable systemd-resolved and set resolv.conf
+log "Disabling systemd-resolved and configuring resolv.conf..."
+sudo systemctl stop systemd-resolved || true
+sudo systemctl disable systemd-resolved || true
 
-sudo sysctl -p || error_exit "Failed to apply IPv6 configuration."
+sudo tee /etc/resolv.conf > /dev/null <<EOF
+nameserver 127.0.0.1
+EOF
+log "resolv.conf configured to use Bind DNS."
 
 # Step 6: Validate DNS Configuration
 log "Validating DNS setup..."
-dig A $ZIMBRA_HOSTNAME.$ZIMBRA_DOMAIN @127.0.0.1 +short || error_exit "DNS A record validation failed."
 dig MX $ZIMBRA_DOMAIN @127.0.0.1 +short || error_exit "DNS MX record validation failed."
+dig A $ZIMBRA_HOSTNAME.$ZIMBRA_DOMAIN @127.0.0.1 +short || error_exit "DNS A record validation failed."
 
 # Step 7: Download and Install Zimbra
 log "Preparing to install Zimbra..."
@@ -131,18 +132,5 @@ echo -e "[INFO]: O DNS Cache do Zimbra não é necessário quando o Bind já est
 echo -e "[INFO]: Certifique-se de selecionar 'N' (não) para evitar conflitos.\n"
 sleep 5
 
-
 log "Starting Zimbra installer..."
 sudo ./install.sh
-
-if [ $? -eq 0 ]; then
-    su - zimbra -c "zmprov sp admin@$DEFAULT_ZIMBRA_DOMAIN $ADMIN_PASSWORD" || error_exit "Failed to set Zimbra admin password."
-    log "Installation and configuration completed successfully."
-else
-    error_exit "Installation failed. Check logs in /tmp/zimbra-install.log."
-fi
-
-HORAFINAL=$(date +%T)
-TEMPO=$(date -u -d "0 $(( $(date -u -d "$HORAFINAL" +"%s") - $(date -u -d "$HORAINICIAL" +"%s") )) seconds" +"%H:%M:%S")
-
-log "Installation completed in $TEMPO."
