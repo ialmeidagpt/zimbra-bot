@@ -34,7 +34,7 @@ error_exit() {
 # Step 1: Install Prerequisites
 log "Installing system prerequisites..."
 sudo apt update && sudo apt -y full-upgrade || error_exit "System update failed."
-sudo apt install -y git net-tools netcat-openbsd bind9 bind9utils libidn11 libpcre3 libgmp10 libexpat1 libstdc++6 resolvconf wget gnupg unzip || error_exit "Failed to install required packages."
+sudo apt install -y git net-tools netcat-openbsd libidn11 libpcre3 libgmp10 libexpat1 libstdc++6 libperl5* libaio1 resolvconf unzip pax sysstat sqlite3 bind9 bind9utils
 
 # Disable any running mail services
 sudo systemctl disable --now postfix 2>/dev/null || true
