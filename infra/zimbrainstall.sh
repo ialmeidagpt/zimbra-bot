@@ -20,8 +20,7 @@ DEFAULT_ZIMBRA_SERVERIP="172.16.1.20"
 DEFAULT_TIMEZONE="America/Sao_Paulo"
 UBUNTU_VERSION="1"  # Defina 1 para Ubuntu 18.04 ou 2 para Ubuntu 20.04
 
-# opções do comando cut: -d (delimiter), -f (fields)
-# $0 (variável de ambiente do nome do comando)
+# Opções do comando cut: -d (delimiter), -f (fields)
 LOG="/var/log/$(echo $0 | cut -d'/' -f2)"
 
 # Função de log
@@ -38,7 +37,7 @@ error_exit() {
 # Step 1: Install Prerequisites
 log "Installing system prerequisites..."
 sudo apt update && sudo apt -y full-upgrade || error_exit "System update failed."
-sudo apt install -y git net-tools netcat-openbsd libidn11 libpcre3 libgmp10 libexpat1 libstdc++6 libperl5* libaio1 resolvconf unzip pax sysstat sqlite3 bind9 bind9utils
+sudo apt install -y git net-tools netcat-openbsd libidn11 libpcre3 libgmp10 libexpat1 libstdc++6 libperl5* libaio1 resolvconf unzip pax sysstat sqlite3 bind9 bind9utils clamav clamav-daemon libnet-dns-perl libmail-spf-perl libio-string-perl libio-socket-ssl-perl
 
 # Disable any running mail services
 sudo systemctl disable --now postfix 2>/dev/null || true
@@ -84,9 +83,8 @@ zone "$ZIMBRA_DOMAIN" IN {
 };
 EOF
 
-echo -e "\n[INFO]: Disabling IPv6..."
-
 # Temporarily disable IPv6
+echo -e "\n[INFO]: Disabling IPv6..."
 sudo sysctl -w net.ipv6.conf.all.disable_ipv6=1
 sudo sysctl -w net.ipv6.conf.default.disable_ipv6=1
 
@@ -100,7 +98,7 @@ EOF
 sudo sysctl -p
 
 sudo tee /etc/bind/db.$ZIMBRA_DOMAIN > /dev/null <<EOF
-\$TTL 1D
+$TTL 1D
 @       IN SOA  ns1.$ZIMBRA_DOMAIN. root.$ZIMBRA_DOMAIN. (
                                 0       ; serial
                                 1D      ; refresh
@@ -163,67 +161,30 @@ wget $ZIMBRA_URL -O zimbra.tgz || error_exit "Failed to download Zimbra package.
 tar xvf zimbra.tgz || error_exit "Failed to extract Zimbra package."
 cd zcs*/ || error_exit "Failed to navigate to Zimbra directory."
 
-echo -e "\n[INFO]: Atenção! Durante a instalação do Zimbra, **não instale o pacote 'zimbra-dnscache'**."
-echo -e "[INFO]: O DNS Cache do Zimbra não é necessário quando o Bind já está configurado e operacional."
-echo -e "[INFO]: Certifique-se de selecionar 'N' (não) para evitar conflitos.\n"
-sleep 5
-
-echo -e "[INFO]: Se houver erro de DNS digite apenas o domínio: zimbra.test, por exemplo"
-sleep 3
-
-echo -e "[INFO]: Selecione a opção zimbra sotre e depois Admin Password para definir a senha. Por fim, aplica as configurações"
-sleep 3
-
 log "Starting Zimbra installer..."
 sudo ./install.sh
 
-echo -e "Instalação do Zimbra Collaboration Community feito com sucesso!!!, continuando com o script...\n"
-sleep 5
-#
-echo -e "Habilitando o Serviço do Zimbra Collaboration Community, aguarde..."
-	# opção do comando: &>> (redirecionar a saída padrão)
-	sudo systemctl enable zimbra.service &>> $LOG
-	sudo systemctl start zimbra.service &>> $LOG
-echo -e "Serviço habilitado com sucesso!!!, continuando com o script...\n"
-sleep 5
-#
-echo -e "Verificando o Status dos Serviços do Zimbra Collaboration Community, aguarde..."
-	# opção do comando: &>> (redirecionar a saída padrão)
-	# opção do comando su: - (login), -c (command)
-	sudo su - zimbra -c "zmcontrol status" &>> $LOG
-echo -e "Verificação do Status dos Serviços feita com sucesso!!!, continuando com o script...\n"
-sleep 5
-#
-echo -e "Verificando as portas de Conexões do Zimbra Collaboration Community, aguarde..."
-	# opção do comando netstat: -a (all), -n (numeric)
-	# portas do Zimbra: 80 (http), 25 (smtp), 110 (pop3), 143 (imap4), 443 (https), 587 (smtp), 7071 (admin)
-	sudo netstat -an | grep '0:80\|0:25\|0:110\|0:143\|0:443\|0:587\|0:7071'
-echo -e "Portas de conexões verificadas com sucesso!!!, continuando com o script...\n"
-sleep 5
-#
-echo -e "Instalação do Zimbra Collaboration Community feita com Sucesso!!!."
-	# script para calcular o tempo gasto (SCRIPT MELHORADO, CORRIGIDO FALHA DE HORA:MINUTO:SEGUNDOS)
-	# opção do comando date: +%T (Time)
-	HORAFINAL=$(date +%T)
-	# opção do comando date: -u (utc), -d (date), +%s (second since 1970)
-	HORAINICIAL01=$(date -u -d "$HORAINICIAL" +"%s")
-	HORAFINAL01=$(date -u -d "$HORAFINAL" +"%s")
-	# opção do comando date: -u (utc), -d (date), 0 (string command), sec (force second), +%H (hour), %M (minute), %S (second), 
-	TEMPO=$(date -u -d "0 $HORAFINAL01 sec - $HORAINICIAL01 sec" +"%H:%M:%S")
-	# $0 (variável de ambiente do nome do comando)
-	echo -e "Tempo gasto para execução do script $0: $TEMPO"
-  echo -e "Pressione <Enter> para concluir o processo."
+# Configure Amavis to use IPv4 only
+log "Configuring Amavis to use IPv4 only..."
+sudo tee -a /opt/zimbra/conf/amavisd.conf > /dev/null <<EOF
+@inet_socket_bind = ('127.0.0.1');  # Força uso apenas de IPv4
+EOF
 
-  echo -e "INFORMAÇÕES PARA ACESSO AO ZIMBRA ADMIN CONSOLE:"
-  echo -e "URL: https://${DEFAULT_ZIMBRA_HOSTNAME}.${DEFAULT_ZIMBRA_DOMAIN}:7071"
-  echo -e "Usuário: admin"
-  echo -e ""
+log "Restarting Zimbra services..."
+sudo su - zimbra -c "zmcontrol restart"
 
-  echo -e "INFORMAÇÕES PARA ACESSO AO ZIMBRA WEBMAIL:"
-  echo -e "URL: https://${DEFAULT_ZIMBRA_HOSTNAME}.${DEFAULT_ZIMBRA_DOMAIN}"
-  echo -e "Usuário: admin"
-  echo -e ""
+# Final log messages
+echo -e "Instalação do Zimbra Collaboration Community concluída com sucesso!\n"
 
-  echo -e "Fim do script $0 em: `date +%d/%m/%Y-"("%H:%M")"`\n" &>> $LOG
-  read
-  exit 1
+HORAFINAL=$(date +%T)
+HORAINICIAL01=$(date -u -d "$HORAINICIAL" +"%s")
+HORAFINAL01=$(date -u -d "$HORAFINAL" +"%s")
+TEMPO=$(date -u -d "0 $HORAFINAL01 sec - $HORAINICIAL01 sec" +"%H:%M:%S")
+
+log "Tempo gasto na instalação: $TEMPO"
+
+log "INFORMAÇÕES PARA ACESSO AO ZIMBRA ADMIN CONSOLE:"
+echo -e "URL: https://${DEFAULT_ZIMBRA_HOSTNAME}.${DEFAULT_ZIMBRA_DOMAIN}:7071\nUsuário: admin\n"
+
+log "Fim do script."
+exit 0
