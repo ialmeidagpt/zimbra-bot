@@ -80,6 +80,21 @@ zone "$ZIMBRA_DOMAIN" IN {
 };
 EOF
 
+echo -e "\n[INFO]: Disabling IPv6..."
+
+# Temporarily disable IPv6
+sudo sysctl -w net.ipv6.conf.all.disable_ipv6=1
+sudo sysctl -w net.ipv6.conf.default.disable_ipv6=1
+
+# Persist the configuration across reboots
+sudo cp /etc/sysctl.conf /etc/sysctl.conf.backup
+sudo tee -a /etc/sysctl.conf<<EOF
+net.ipv6.conf.all.disable_ipv6 = 1
+net.ipv6.conf.default.disable_ipv6 = 1
+EOF
+
+sudo sysctl -p
+
 sudo tee /etc/bind/db.$ZIMBRA_DOMAIN > /dev/null <<EOF
 \$TTL 1D
 @       IN SOA  ns1.$ZIMBRA_DOMAIN. root.$ZIMBRA_DOMAIN. (
@@ -94,6 +109,24 @@ ns1             IN      A       $ZIMBRA_SERVERIP
 $ZIMBRA_HOSTNAME IN      A       $ZIMBRA_SERVERIP
 EOF
 
+sudo sed -i 's/dnssec-validation yes/dnssec-validation no/g' /etc/bind/named.conf.options
+
+sudo tee /etc/bind/named.conf.options<<EOF
+options {
+    directory "/var/cache/bind";
+
+    forwarders {
+        8.8.8.8;
+        1.1.1.1;
+    };
+
+    dnssec-validation auto;
+
+    listen-on-v6 { any; };
+};
+EOF
+
+sudo systemctl enable bind9
 sudo systemctl restart bind9 || error_exit "Failed to restart Bind9."
 log "Bind DNS configured successfully."
 
