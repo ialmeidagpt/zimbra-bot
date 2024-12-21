@@ -192,7 +192,7 @@ echo -e "Verificando o Status dos Serviços do Zimbra Collaboration Community, a
 	# opção do comando su: - (login), -c (command)
 	sudo su - zimbra -c "zmcontrol status" &>> $LOG
 echo -e "Verificação do Status dos Serviços feita com sucesso!!!, continuando com o script...\n"
-sleep 14
+sleep 5
 #
 echo -e "Verificando as portas de Conexões do Zimbra Collaboration Community, aguarde..."
 	# opção do comando netstat: -a (all), -n (numeric)
