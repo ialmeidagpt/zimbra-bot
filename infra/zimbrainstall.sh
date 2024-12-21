@@ -126,6 +126,12 @@ wget $ZIMBRA_URL -O zimbra.tgz || error_exit "Failed to download Zimbra package.
 tar xvf zimbra.tgz || error_exit "Failed to extract Zimbra package."
 cd zcs*/ || error_exit "Failed to navigate to Zimbra directory."
 
+echo -e "\n[INFO]: Atenção! Durante a instalação do Zimbra, **não instale o pacote 'zimbra-dnscache'**."
+echo -e "[INFO]: O DNS Cache do Zimbra não é necessário quando o Bind já está configurado e operacional."
+echo -e "[INFO]: Certifique-se de selecionar 'N' (não) para evitar conflitos.\n"
+sleep 5
+
+
 log "Starting Zimbra installer..."
 sudo ./install.sh
 
