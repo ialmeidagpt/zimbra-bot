@@ -182,22 +182,22 @@ sleep 5
 #
 echo -e "Habilitando o Serviço do Zimbra Collaboration Community, aguarde..."
 	# opção do comando: &>> (redirecionar a saída padrão)
-	systemctl enable zimbra.service &>> $LOG
-	systemctl start zimbra.service &>> $LOG
+	sudo systemctl enable zimbra.service &>> $LOG
+	sudo systemctl start zimbra.service &>> $LOG
 echo -e "Serviço habilitado com sucesso!!!, continuando com o script...\n"
 sleep 5
 #
 echo -e "Verificando o Status dos Serviços do Zimbra Collaboration Community, aguarde..."
 	# opção do comando: &>> (redirecionar a saída padrão)
 	# opção do comando su: - (login), -c (command)
-	su - zimbra -c "zmcontrol status" &>> $LOG
+	sudo su - zimbra -c "zmcontrol status" &>> $LOG
 echo -e "Verificação do Status dos Serviços feita com sucesso!!!, continuando com o script...\n"
 sleep 5
 #
 echo -e "Verificando as portas de Conexões do Zimbra Collaboration Community, aguarde..."
 	# opção do comando netstat: -a (all), -n (numeric)
 	# portas do Zimbra: 80 (http), 25 (smtp), 110 (pop3), 143 (imap4), 443 (https), 587 (smtp), 7071 (admin)
-	netstat -an | grep '0:80\|0:25\|0:110\|0:143\|0:443\|0:587\|0:7071'
+	sudo netstat -an | grep '0:80\|0:25\|0:110\|0:143\|0:443\|0:587\|0:7071'
 echo -e "Portas de conexões verificadas com sucesso!!!, continuando com o script...\n"
 sleep 5
 #
