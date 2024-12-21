@@ -138,6 +138,17 @@ EOF
 
 sudo sysctl -p
 
+log "Configuring Zimbra repository..."
+if [ -f "/tmp/zimbra-pubkey.asc" ]; then
+    sudo gpg --dearmor -o /usr/share/keyrings/zimbra.gpg /tmp/zimbra-pubkey.asc || error_exit "Failed to import Zimbra GPG key"
+else
+    error_exit "Zimbra GPG key file not found at /tmp/zimbra-pubkey.asc"
+fi
+
+echo "deb [signed-by=/usr/share/keyrings/zimbra.gpg arch=amd64] https://repo.zimbra.com/apt/87 bionic main" | sudo tee /etc/apt/sources.list.d/zimbra.list > /dev/null
+
+sudo apt update || error_exit "Failed to update package list."
+
 # Step 6: Validate DNS Configuration
 echo -e "\n[INFO]: Validating DNS setup..."
 dig A $ZIMBRA_HOSTNAME.$ZIMBRA_DOMAIN @127.0.0.1 +short
