@@ -113,25 +113,10 @@ EOF
 sudo sysctl -p || error_exit "Failed to persist IPv6 settings"
 
 # Step 6: Configurar chave GPG e repositório
-log "Importing Zimbra GPG key..."
-if [ -f "/usr/share/keyrings/zimbra-main.gpg" ]; then
-    log "Existing Zimbra GPG key found. Removing it..."
-    sudo rm -f /usr/share/keyrings/zimbra-main.gpg
-fi
-
-if curl -fsSL https://repo.zimbra.com/apt/zimbra-pubkey.asc | sudo gpg --dearmor -o /usr/share/keyrings/zimbra-main.gpg; then
-    log "Zimbra GPG key successfully imported from primary URL."
-elif sudo gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 9BE6ED79; then
-    sudo gpg --export 9BE6ED79 | sudo tee /usr/share/keyrings/zimbra-main.gpg > /dev/null
-    log "Zimbra GPG key successfully imported from fallback keyserver."
-else
-    error_exit "Failed to download Zimbra GPG key from all sources."
-fi
-
-log "Configuring Zimbra repository..."
-echo "deb [signed-by=/usr/share/keyrings/zimbra-main.gpg arch=amd64] https://repo.zimbra.com/apt/87 bionic main" | sudo tee /etc/apt/sources.list.d/zimbra.list > /dev/null
-
-sudo apt update || error_exit "Failed to update package list."
+# Import GPG key and configure Zimbra repository
+sudo gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 9BE6ED79
+sudo gpg --export 9BE6ED79 | sudo tee /usr/share/keyrings/zimbra.gpg > /dev/null
+echo "deb [signed-by=/usr/share/keyrings/zimbra.gpg arch=amd64] https://repo.zimbra.com/apt/87 bionic main" | sudo tee /etc/apt/sources.list.d/zimbra.list
 
 # Step 7: Instalar Zimbra
 log "Preparing to install Zimbra..."
@@ -166,8 +151,8 @@ Y
 EOF
 
 log "Starting Zimbra installer..."
-sudo ./install.sh < /tmp/zimbra-install-answers || error_exit "Zimbra installation failed"
-#sudo ./install.sh
+#sudo ./install.sh < /tmp/zimbra-install-answers || error_exit "Zimbra installation failed"
+sudo ./install.sh
 
 log "Configuring Zimbra admin account..."
 su - zimbra -c "zmprov sp admin@$DEFAULT_ZIMBRA_DOMAIN $ADMIN_PASSWORD" || error_exit "Failed to configure Zimbra admin account"

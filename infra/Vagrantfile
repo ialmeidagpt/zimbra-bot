@@ -12,22 +12,23 @@ Vagrant.configure("2") do |config|
     vb.cpus = 3
   end
 
+  # Envia o arquivo de chave GPG para a máquina virtual
+  config.vm.provision "file", source: "./zimbra-pubkey.asc", destination: "/tmp/zimbra-pubkey.asc"
+
   # Provisionar o script zimbrainstall.sh na máquina virtual
   config.vm.provision "file", source: "./zimbrainstall.sh", destination: "/home/vagrant/zimbrainstall.sh"
 
-  # Configuração e execução inicial
+  # Configuração inicial
   config.vm.provision "shell", inline: <<-SHELL
-
     # Instala dependências necessárias
     sudo apt-get install -y dos2unix || { echo "[ERROR]: Failed to install dependencies. Exiting."; exit 1; }
 
     # Corrige final de linha e permissões no script de instalação
     dos2unix /home/vagrant/zimbrainstall.sh
     chmod +x /home/vagrant/zimbrainstall.sh
-
   SHELL
 
-  # Configurar mensagem após iniciar
+  # Mensagem após inicialização
   config.vm.provision "shell", inline: <<-SHELL, run: "always"
     echo "O script 'zimbrainstall.sh' foi executado automaticamente."
     echo "Se necessário, você pode verificar os logs ou executar novamente:"
