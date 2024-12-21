@@ -3,127 +3,177 @@
 #
 #          FILE: zimbra_bind_setup_and_prereqs.sh
 #
+#         USAGE: ./zimbra_bind_setup_and_prereqs.sh
+#
 #   DESCRIPTION: Instala dependências, configura Bind DNS, desativa IPv6 e instala Zimbra.
 #
 #===============================================================================
 
-set -euo pipefail
+set -euo pipefail  # Exige que erros parem o script
 
 HORAINICIAL=$(date +%T)
 
-# Variável para a versão do Ubuntu
-UBUNTU_VERSION="18" # Altere para "18" ou "20" conforme necessário.
-
-# Valores padrão
+# Default values
 DEFAULT_ZIMBRA_DOMAIN="zimbra.test"
 DEFAULT_ZIMBRA_HOSTNAME="mail"
 DEFAULT_ZIMBRA_SERVERIP="172.16.1.20"
 DEFAULT_TIMEZONE="America/Sao_Paulo"
+UBUNTU_VERSION="1"  # Defina 1 para Ubuntu 18.04 ou 2 para Ubuntu 20.04
 ADMIN_PASSWORD="MyAdminPassw0rd"
 
-# Função de log
-log() {
-    echo -e "[INFO]: $1"
-}
-
-error_exit() {
-    echo -e "[ERROR]: $1. Exiting."
-    exit 1
-}
-
-# Step 1: Instalar dependências
-log "Installing system prerequisites..."
-sudo apt update && sudo apt -y full-upgrade || error_exit "Failed to update and upgrade the system"
-sudo apt install -y git net-tools netcat-openbsd libidn11 libpcre3 libgmp10 libexpat1 libstdc++6 libperl5* libaio1 resolvconf unzip pax sysstat sqlite3 bind9 bind9utils wget gnupg || error_exit "Failed to install required packages"
+# Step 1: Install Prerequisites
+echo -e "\n[INFO]: Installing system prerequisites..."
+sudo apt update && sudo apt -y full-upgrade
+sudo apt install -y git net-tools netcat-openbsd libidn11 libpcre3 libgmp10 libexpat1 libstdc++6 libperl5* libaio1 resolvconf unzip pax sysstat sqlite3 bind9 bind9utils
 
 # Disable any running mail services
 sudo systemctl disable --now postfix 2>/dev/null || true
 
-# Step 2: Configurar variáveis padrão
-log "Using default values for Zimbra configuration..."
+# Step 2: Use predefined variables
+echo "Using default values for Zimbra configuration..."
 ZIMBRA_DOMAIN=${DEFAULT_ZIMBRA_DOMAIN}
 ZIMBRA_HOSTNAME=${DEFAULT_ZIMBRA_HOSTNAME}
 ZIMBRA_SERVERIP=${DEFAULT_ZIMBRA_SERVERIP}
 TimeZone=${DEFAULT_TIMEZONE}
 
-log "Zimbra Base Domain: $ZIMBRA_DOMAIN"
-log "Zimbra Mail Server Hostname: $ZIMBRA_HOSTNAME"
-log "Zimbra Server IP Address: $ZIMBRA_SERVERIP"
-log "Timezone: $TimeZone"
+echo "Zimbra Base Domain: $ZIMBRA_DOMAIN"
+echo "Zimbra Mail Server Hostname: $ZIMBRA_HOSTNAME"
+echo "Zimbra Server IP Address: $ZIMBRA_SERVERIP"
+echo "Timezone: $TimeZone"
+echo ""
 
-# Step 3: Configurar /etc/hosts
-log "Configuring /etc/hosts..."
+# Step 3: Configure /etc/hosts file
+echo -e "[INFO]: Configuring /etc/hosts..."
 sudo cp /etc/hosts /etc/hosts.backup
-sudo tee /etc/hosts > /dev/null <<EOF
+sudo tee /etc/hosts<<EOF
 127.0.0.1       localhost
 $ZIMBRA_SERVERIP   $ZIMBRA_HOSTNAME.$ZIMBRA_DOMAIN       $ZIMBRA_HOSTNAME
 EOF
 
-sudo hostnamectl set-hostname $ZIMBRA_HOSTNAME.$ZIMBRA_DOMAIN || error_exit "Failed to set hostname"
-log "Hostname updated to: $(hostname -f)"
+# Update system hostname
+sudo hostnamectl set-hostname $ZIMBRA_HOSTNAME.$ZIMBRA_DOMAIN
+echo -e "[INFO]: Hostname updated to: $(hostname -f)\n"
 
-sudo timedatectl set-timezone $TimeZone || error_exit "Failed to set timezone"
+# Configure timezone
+sudo timedatectl set-timezone $TimeZone
 sudo apt remove -y ntp 2>/dev/null || true
-sudo apt install -y chrony || error_exit "Failed to install chrony"
-sudo systemctl restart chrony || error_exit "Failed to restart chrony"
+sudo apt install -y chrony
+sudo systemctl restart chrony
 
-# Step 4: Configurar chave GPG e repositório
-log "Configuring Zimbra repository..."
-if [ -f "/tmp/zimbra-pubkey.asc" ]; then
-    sudo gpg --dearmor -o /usr/share/keyrings/zimbra.gpg /tmp/zimbra-pubkey.asc || error_exit "Failed to import Zimbra GPG key"
-else
-    error_exit "Zimbra GPG key file not found at /tmp/zimbra-pubkey.asc"
-fi
-
-echo "deb [signed-by=/usr/share/keyrings/zimbra.gpg arch=amd64] https://repo.zimbra.com/apt/87 bionic main" | sudo tee /etc/apt/sources.list.d/zimbra.list > /dev/null
-
-sudo apt update || error_exit "Failed to update package list."
-
-# Step 5: Instalar Zimbra
-log "Preparing to install Zimbra..."
-if [[ "$UBUNTU_VERSION" == "18" ]]; then
-    ZIMBRA_URL="https://files.zimbra.com/downloads/8.8.15_GA/zcs-8.8.15_GA_3869.UBUNTU18_64.20190918004220.tgz"
-elif [[ "$UBUNTU_VERSION" == "20" ]]; then
-    ZIMBRA_URL="https://files.zimbra.com/downloads/8.8.15_GA/zcs-8.8.15_GA_4179.UBUNTU20_64.20211118033954.tgz"
-else
-    error_exit "Unsupported Ubuntu version. Please use '18' or '20'."
-fi
-
-if [ ! -f "zimbra.tgz" ]; then
-    wget $ZIMBRA_URL -O zimbra.tgz || error_exit "Failed to download Zimbra package"
-else
-    log "Zimbra package already exists. Skipping download."
-fi
-
-tar xvf zimbra.tgz || error_exit "Failed to extract Zimbra package"
-cd zcs*/ || error_exit "Failed to navigate to Zimbra directory"
-
-log "Generating automatic answer file for installation..."
-cat <<EOF > /tmp/zimbra-install-answers
-Y
-Y
-Y
-Y
-Y
-N
-Y
-Y
-Y
-Y
-Y
-Y
-N
-N
-Y
+# Step 4: Configure Bind DNS Server
+echo -e "\n[INFO]: Configuring Bind DNS server..."
+sudo cp /etc/resolvconf/resolv.conf.d/head /etc/resolvconf/resolv.conf.d/head.backup
+sudo tee /etc/resolvconf/resolv.conf.d/head<<EOF
+search $ZIMBRA_DOMAIN
+nameserver 127.0.0.1
+nameserver $ZIMBRA_SERVERIP
+nameserver 8.8.8.8
+nameserver 1.1.1.1
 EOF
 
-log "Starting Zimbra installer..."
-sudo ./install.sh < /tmp/zimbra-install-answers || error_exit "Zimbra installation failed"
+sudo systemctl stop systemd-resolved
+sudo systemctl disable systemd-resolved
+sudo systemctl enable resolvconf
+sudo systemctl restart resolvconf
 
-log "Configuring Zimbra admin account..."
-su - zimbra -c "zmprov sp admin@$DEFAULT_ZIMBRA_DOMAIN $ADMIN_PASSWORD" || error_exit "Failed to configure Zimbra admin account"
+sudo tee /etc/resolv.conf<<EOF
+search $ZIMBRA_DOMAIN
+nameserver 127.0.0.1
+nameserver $ZIMBRA_SERVERIP
+nameserver 8.8.8.8
+nameserver 1.1.1.1
+EOF
+
+# Configure Bind DNS zone
+sudo cp /etc/bind/named.conf.local /etc/bind/named.conf.local.backup
+sudo tee -a /etc/bind/named.conf.local<<EOF
+zone "$ZIMBRA_DOMAIN" IN {
+    type master;
+    file "/etc/bind/db.$ZIMBRA_DOMAIN";
+};
+EOF
+
+sudo tee /etc/bind/db.$ZIMBRA_DOMAIN<<EOF
+\$TTL 1D
+@       IN SOA  ns1.$ZIMBRA_DOMAIN. root.$ZIMBRA_DOMAIN. (
+                                0       ; serial
+                                1D      ; refresh
+                                1H      ; retry
+                                1W      ; expire
+                                3H )    ; minimum
+@               IN      NS      ns1.$ZIMBRA_DOMAIN.
+@               IN      MX      0 $ZIMBRA_HOSTNAME.$ZIMBRA_DOMAIN.
+ns1             IN      A       $ZIMBRA_SERVERIP
+$ZIMBRA_HOSTNAME IN      A       $ZIMBRA_SERVERIP
+EOF
+
+sudo sed -i 's/dnssec-validation yes/dnssec-validation no/g' /etc/bind/named.conf.options
+
+sudo tee /etc/bind/named.conf.options<<EOF
+options {
+    directory "/var/cache/bind";
+
+    forwarders {
+        8.8.8.8;
+        1.1.1.1;
+    };
+
+    dnssec-validation auto;
+
+    listen-on-v6 { any; };
+};
+EOF
+
+sudo systemctl enable bind9
+sudo systemctl restart bind9
+
+# Step 5: Disable IPv6
+echo -e "\n[INFO]: Disabling IPv6..."
+sudo sysctl -w net.ipv6.conf.all.disable_ipv6=1
+sudo sysctl -w net.ipv6.conf.default.disable_ipv6=1
+sudo tee -a /etc/sysctl.conf<<EOF
+net.ipv6.conf.all.disable_ipv6 = 1
+net.ipv6.conf.default.disable_ipv6 = 1
+EOF
+
+sudo sysctl -p
+
+# Step 6: Validate DNS Configuration
+echo -e "\n[INFO]: Validating DNS setup..."
+dig A $ZIMBRA_HOSTNAME.$ZIMBRA_DOMAIN @127.0.0.1 +short
+dig MX $ZIMBRA_DOMAIN @127.0.0.1 +short
+
+# Step 7: Download and Install Zimbra
+echo -e "\n[INFO]: Preparing to install Zimbra..."
+
+# Verificar conectividade com o repositório Zimbra
+if [[ "$UBUNTU_VERSION" == "1" ]]; then
+    ZIMBRA_URL="https://files.zimbra.com/downloads/8.8.15_GA/zcs-8.8.15_GA_3869.UBUNTU18_64.20190918004220.tgz"
+elif [[ "$UBUNTU_VERSION" == "2" ]]; then
+    ZIMBRA_URL="https://files.zimbra.com/downloads/8.8.15_GA/zcs-8.8.15_GA_4179.UBUNTU20_64.20211118033954.tgz"
+else
+    echo -e "\n[ERROR]: Invalid Ubuntu version specified. Exiting."
+    exit 1
+fi
+
+cd ~/
+wget $ZIMBRA_URL -O zimbra.tgz
+tar xvf zimbra.tgz
+cd zcs*/
+
+# Iniciar o instalador do Zimbra
+echo -e "\n[INFO]: Starting Zimbra installer..."
+sudo ./install.sh
+
+if [ $? -eq 0 ]; then
+    su - zimbra -c "zmprov sp admin@$DEFAULT_ZIMBRA_DOMAIN $ADMIN_PASSWORD"
+    echo -e "\n[INFO]: Installation and configuration completed successfully."
+else
+    echo -e "\n[ERROR]: Installation failed. Check logs in /tmp/zimbra-install.log."
+    exit 1
+fi
 
 HORAFINAL=$(date +%T)
 TEMPO=$(date -u -d "0 $(( $(date -u -d "$HORAFINAL" +"%s") - $(date -u -d "$HORAINICIAL" +"%s") )) seconds" +"%H:%M:%S")
 
-log "Installation completed in $TEMPO."
+echo -e "\n[INFO]: Installation completed in $TEMPO."
