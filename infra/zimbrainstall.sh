@@ -19,7 +19,6 @@ DEFAULT_ZIMBRA_HOSTNAME="mail"
 DEFAULT_ZIMBRA_SERVERIP="172.16.1.20"
 DEFAULT_TIMEZONE="America/Sao_Paulo"
 UBUNTU_VERSION="1"  # Defina 1 para Ubuntu 18.04 ou 2 para Ubuntu 20.04
-ADMIN_PASSWORD="MyAdminPassw0rd"
 
 # Função de log
 log() {
