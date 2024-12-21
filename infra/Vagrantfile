@@ -15,26 +15,22 @@ Vagrant.configure("2") do |config|
   # Provisionar o script zimbrainstall.sh na máquina virtual
   config.vm.provision "file", source: "./zimbrainstall.sh", destination: "/home/vagrant/zimbrainstall.sh"
 
-  # Corrigir final de linha do arquivo para LF, permitir execução e executar o script automaticamente
+  # Configuração e execução inicial
   config.vm.provision "shell", inline: <<-SHELL
-    # Instalar dos2unix caso não esteja disponível
-    if ! command -v dos2unix &> /dev/null; then
-      sudo apt-get update
-      sudo apt-get install -y dos2unix
-    fi
 
-    # Corrigir final de linha e permissões
+    # Instala dependências necessárias
+    sudo apt-get install -y dos2unix || { echo "[ERROR]: Failed to install dependencies. Exiting."; exit 1; }
+
+    # Corrige final de linha e permissões no script de instalação
     dos2unix /home/vagrant/zimbrainstall.sh
     chmod +x /home/vagrant/zimbrainstall.sh
 
-    # Executar o script
-    sudo /home/vagrant/zimbrainstall.sh
   SHELL
 
   # Configurar mensagem após iniciar
   config.vm.provision "shell", inline: <<-SHELL, run: "always"
     echo "O script 'zimbrainstall.sh' foi executado automaticamente."
     echo "Se necessário, você pode verificar os logs ou executar novamente:"
-    echo "sudo sh /home/vagrant/zimbrainstall.sh"
+    echo "sudo bash /home/vagrant/zimbrainstall.sh"
   SHELL
 end
