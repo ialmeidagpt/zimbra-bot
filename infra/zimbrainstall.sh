@@ -170,7 +170,6 @@ EOF
 log "Starting Zimbra installer..."
 sudo ./install.sh
 
-
 log "Restarting Zimbra services..."
 sudo su - zimbra -c "zmcontrol restart"
 
