@@ -160,6 +160,8 @@ fi
 wget $ZIMBRA_URL -O zimbra.tgz || error_exit "Failed to download Zimbra package."
 tar xvf zimbra.tgz || error_exit "Failed to extract Zimbra package."
 
+sudo apt-get update -y
+
 log "Starting Zimbra installer..."
 sleep 3
 	cd zcs*/
