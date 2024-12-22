@@ -98,7 +98,7 @@ EOF
 sudo sysctl -p
 
 sudo tee /etc/bind/db.$ZIMBRA_DOMAIN > /dev/null <<EOF
-$TTL 1D
+\$TTL 1D
 @       IN SOA  ns1.$ZIMBRA_DOMAIN. root.$ZIMBRA_DOMAIN. (
                                 0       ; serial
                                 1D      ; refresh
