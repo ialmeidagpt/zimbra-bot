@@ -113,11 +113,10 @@ O projeto inclui uma pasta `infra/` com arquivos de configuração do Vagrant e 
 2. Execute o Vagrant para iniciar a máquina virtual e instalar o Zimbra:
 
    ```bash
-   vagrant up
+   vagrant up && vagrant ssh
    sudo bash /home/vagrant/zimbrainstall.sh
    ```
-   > para acessar a máquina digite ```vagrant ssh```
-   
+
    Isso criará uma máquina virtual com o Zimbra instalado e configurado para testes locais.
 
 3. Após o término da instalação, o Zimbra estará acessível no IP configurado (ex: `https://172.16.1.20:7071`).
