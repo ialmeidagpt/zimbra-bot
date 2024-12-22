@@ -182,8 +182,15 @@ sudo su - zimbra -c "zmcontrol restart"
 # Final log messages
 echo -e "Instalação do Zimbra Collaboration Community concluída com sucesso!\n"
 
-HORAFINAL=$(date +%T)
-TEMPO=$(date -u -d "0 $HORAFINAL sec - $HORAINICIAL sec" +"%H:%M:%S")
+# Convertendo tempos para segundos desde o Epoch
+HORAINICIAL_SEG=$(date -u -d "$HORAINICIAL" +"%s")
+HORAFINAL_SEG=$(date -u -d "$HORAFINAL" +"%s")
+
+# Calculando a diferença
+DIFERENCA=$((HORAFINAL_SEG - HORAINICIAL_SEG))
+
+# Convertendo a diferença para o formato HH:MM:SS
+TEMPO=$(date -u -d "@$DIFERENCA" +"%H:%M:%S")
 
 log "Tempo gasto na instalação: $TEMPO"
 
