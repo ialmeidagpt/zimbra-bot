@@ -161,14 +161,15 @@ wget $ZIMBRA_URL -O zimbra.tgz || error_exit "Failed to download Zimbra package.
 tar xvf zimbra.tgz || error_exit "Failed to extract Zimbra package."
 cd zcs*/ || error_exit "Failed to navigate to Zimbra directory."
 
-log "Starting Zimbra installer..."
-sudo ./install.sh
-
 # Configure Amavis to use IPv4 only
 log "Configuring Amavis to use IPv4 only..."
 sudo tee -a /opt/zimbra/conf/amavisd.conf > /dev/null <<EOF
 @inet_socket_bind = ('127.0.0.1');  # Força uso apenas de IPv4
 EOF
+
+log "Starting Zimbra installer..."
+sudo ./install.sh
+
 
 log "Restarting Zimbra services..."
 sudo su - zimbra -c "zmcontrol restart"
