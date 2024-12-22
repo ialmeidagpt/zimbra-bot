@@ -177,9 +177,7 @@ sudo su - zimbra -c "zmcontrol restart"
 echo -e "Instalação do Zimbra Collaboration Community concluída com sucesso!\n"
 
 HORAFINAL=$(date +%T)
-HORAINICIAL01=$(date -u -d "$HORAINICIAL" +"%s")
-HORAFINAL01=$(date -u -d "$HORAFINAL" +"%s")
-TEMPO=$(date -u -d "0 $HORAFINAL01 sec - $HORAINICIAL01 sec" +"%H:%M:%S")
+TEMPO=$(date -u -d "0 $HORAFINAL sec - $HORAINICIAL sec" +"%H:%M:%S")
 
 log "Tempo gasto na instalação: $TEMPO"
 
