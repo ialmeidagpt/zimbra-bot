@@ -159,11 +159,13 @@ fi
 
 wget $ZIMBRA_URL -O zimbra.tgz || error_exit "Failed to download Zimbra package."
 tar xvf zimbra.tgz || error_exit "Failed to extract Zimbra package."
-cd zcs*/ || error_exit "Failed to navigate to Zimbra directory."
 
 log "Starting Zimbra installer..."
-sudo ./install.sh
-
+sleep 3
+	cd zcs*/
+		./install.sh
+	cd ..
+sleep 3
 # Configure Amavis to use IPv4 only
 log "Configuring Amavis to use IPv4 only..."
 if [[ ! -f /opt/zimbra/conf/amavisd.conf ]]; then
@@ -175,6 +177,27 @@ sudo tee -a /opt/zimbra/conf/amavisd.conf > /dev/null <<EOF
 @inet_socket_bind = ('127.0.0.1');  # Força uso apenas de IPv4
 EOF
 log "Amavis configured to use IPv4 only."
+
+echo -e "Habilitando o Serviço do Zimbra Collaboration Community, aguarde..."
+	# opção do comando: &>> (redirecionar a saída padrão)
+	systemctl enable zimbra.service &>> $LOG
+	systemctl start zimbra.service &>> $LOG
+echo -e "Serviço habilitado com sucesso!!!, continuando com o script...\n"
+sleep 5
+#
+echo -e "Verificando o Status dos Serviços do Zimbra Collaboration Community, aguarde..."
+	# opção do comando: &>> (redirecionar a saída padrão)
+	# opção do comando su: - (login), -c (command)
+	su - zimbra -c "zmcontrol status" &>> $LOG
+echo -e "Verificação do Status dos Serviços feita com sucesso!!!, continuando com o script...\n"
+sleep 5
+#
+echo -e "Verificando as portas de Conexões do Zimbra Collaboration Community, aguarde..."
+	# opção do comando netstat: -a (all), -n (numeric)
+	# portas do Zimbra: 80 (http), 25 (smtp), 110 (pop3), 143 (imap4), 443 (https), 587 (smtp), 7071 (admin)
+	netstat -an | grep '0:80\|0:25\|0:110\|0:143\|0:443\|0:587\|0:7071'
+echo -e "Portas de conexões verificadas com sucesso!!!, continuando com o script...\n"
+sleep 5
 
 log "Restarting Zimbra services..."
 sudo su - zimbra -c "zmcontrol restart"
