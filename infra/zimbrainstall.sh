@@ -137,11 +137,6 @@ log "Disabling systemd-resolved and configuring resolv.conf..."
 sudo systemctl stop systemd-resolved || true
 sudo systemctl disable systemd-resolved || true
 
-sudo tee /etc/resolv.conf > /dev/null <<EOF
-nameserver 127.0.0.1
-EOF
-log "resolv.conf configured to use Bind DNS."
-
 # Step 6: Validate DNS Configuration
 log "Validating DNS setup..."
 dig MX $ZIMBRA_DOMAIN @127.0.0.1 +short || error_exit "DNS MX record validation failed."
@@ -161,6 +156,11 @@ wget $ZIMBRA_URL -O zimbra.tgz || error_exit "Failed to download Zimbra package.
 tar xvf zimbra.tgz || error_exit "Failed to extract Zimbra package."
 
 sudo apt-get update -y
+
+sudo tee /etc/resolv.conf > /dev/null <<EOF
+nameserver 127.0.0.1
+EOF
+log "resolv.conf configured to use Bind DNS."
 
 log "Starting Zimbra installer..."
 sleep 3
