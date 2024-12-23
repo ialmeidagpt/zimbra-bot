@@ -111,8 +111,6 @@ ns1             IN      A       $ZIMBRA_SERVERIP
 $ZIMBRA_HOSTNAME IN      A       $ZIMBRA_SERVERIP
 EOF
 
-sudo sed -i 's/dnssec-validation yes/dnssec-validation no/g' /etc/bind/named.conf.options
-
 sudo tee /etc/bind/named.conf.options<<EOF
 options {
     directory "/var/cache/bind";
