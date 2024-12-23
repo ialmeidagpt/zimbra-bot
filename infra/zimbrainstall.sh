@@ -144,6 +144,15 @@ dig A $ZIMBRA_HOSTNAME.$ZIMBRA_DOMAIN @127.0.0.1 +short || error_exit "DNS A rec
 
 # Step 7: Download and Install Zimbra
 log "Preparing to install Zimbra..."
+
+# Registrar a chave GPG do Zimbra
+if [[ -f "/tmp/zimbra-pubkey.asc" ]]; then
+    log "Adding Zimbra GPG key to the system..."
+    sudo apt-key add /tmp/zimbra-pubkey.asc || error_exit "Failed to add Zimbra GPG key."
+else
+    error_exit "Zimbra GPG key not found at /tmp/zimbra-pubkey.asc."
+fi
+
 if [[ "$UBUNTU_VERSION" == "1" ]]; then
     ZIMBRA_URL="https://files.zimbra.com/downloads/8.8.15_GA/zcs-8.8.15_GA_3869.UBUNTU18_64.20190918004220.tgz"
 elif [[ "$UBUNTU_VERSION" == "2" ]]; then
@@ -160,6 +169,7 @@ sudo apt-get update -y
 sudo tee /etc/resolv.conf > /dev/null <<EOF
 nameserver 127.0.0.1
 EOF
+
 log "resolv.conf configured to use Bind DNS."
 
 log "Starting Zimbra installer..."
