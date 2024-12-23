@@ -122,9 +122,10 @@ options {
         1.1.1.1;
     };
 
-    dnssec-validation auto;
+    dnssec-validation no;
 
-    listen-on-v6 { any; };
+    listen-on-v6 { none; };
+	listen-on { any; };
 };
 EOF
 
