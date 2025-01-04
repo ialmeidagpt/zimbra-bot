@@ -115,38 +115,56 @@ function mapIPs(qiList) {
 async function handleCriticalCase(authToken, fromAddress, count) {
   try {
     const zimbraId = await soapService.getAccountInfo(authToken, fromAddress);
-    const setPassword = await soapService.setPassword(authToken, zimbraId);
+
+    if (!zimbraId) {
+      console.log(`Conta inexistente para handleCriticalCase: ${fromAddress}, não trocando senha nem bloqueando.`);
+      return;
+    }
+
+    const newPassword = await soapService.setPassword(authToken, zimbraId);
     const bloquear = await bloquearConta(fromAddress);
     const observacao = await adicionarObservacao(fromAddress);
 
+    // Se newPassword for null, não faça “Nova senha: undefined”
     let message =
-      `*Address:* ${fromAddress},\n*Count:* ${count},\n*IP origem:* IP não encontrado (CRÍTICO).` +
-      `,\n*Nova senha*: ${setPassword},` +
-      `\n*Bloqueado*: ${bloquear},` +
-      `\n*Observação*: ${observacao}`;
+      `*Address:* ${fromAddress},\n*Count:* ${count},\n*IP origem:* IP não encontrado (CRÍTICO).`;
+
+    if (newPassword) {
+      message += `,\n*Nova senha*: ${newPassword}`;
+    }
+    message += `,\n*Bloqueado*: ${bloquear},`;
+    message += `\n*Observação*: ${observacao}`;
+
     console.warn(
       `Bloqueio e alteração de senha para ${fromAddress} devido a envio excessivo e IP não encontrado.`
     );
     await soapService.sendTelegramMessage(message);
+
   } catch (error) {
     await handleAccountError(error, fromAddress);
   }
 }
 
+
 async function handleBlocking(authToken, fromAddress, ip, country, count) {
   try {
     const zimbraId = await soapService.getAccountInfo(authToken, fromAddress);
-    const setPassword = await soapService.setPassword(authToken, zimbraId);
 
-    let message = `*Address:* ${fromAddress},\n*Count:* ${count},\n*IP origem:* ${ip}${country !== "BR" ? " (estrangeiro: " + country + ")" : ""
-      }`;
+    if (!zimbraId) {
+      console.log(`Conta inexistente para handleBlocking: ${fromAddress}, não trocando senha nem bloqueando.`);
+      return;
+    }
+
+    const newPassword = await soapService.setPassword(authToken, zimbraId);
+
+    let message = `*Address:* ${fromAddress},\n*Count:* ${count},\n*IP origem:* ${ip}${country !== "BR" ? " (estrangeiro: " + country + ")" : ""}`;
+
     const bloquear = await bloquearConta(fromAddress);
     const observacao = await adicionarObservacao(fromAddress);
 
-    if (setPassword !== undefined) {
-      message += `,\n*Nova senha*: ${setPassword}`;
+    if (newPassword) {
+      message += `,\n*Nova senha*: ${newPassword}`;
     }
-
     message += `,\n*Bloqueado*: ${bloquear}`;
     message += `,\n*Observação*: ${observacao}`;
 
@@ -156,18 +174,34 @@ async function handleBlocking(authToken, fromAddress, ip, country, count) {
   }
 }
 
+
 async function handlePasswordChange(authToken, fromAddress, count) {
   try {
     const zimbraId = await soapService.getAccountInfo(authToken, fromAddress);
-    const setPassword = await soapService.setPassword(authToken, zimbraId);
 
-    let message = `*Address:* ${fromAddress},\n*Count:* ${count},\n*Nova senha*: ${setPassword}`;
+    // Se não existe a conta (zimbraId == null), saia sem trocar senha
+    if (!zimbraId) {
+      console.log(`Conta inexistente, não faz handlePasswordChange: ${fromAddress}`);
+      return;
+    }
+
+    const newPassword = await soapService.setPassword(authToken, zimbraId);
+
+    // Se a função setPassword retornou null, também não envia mensagem
+    if (!newPassword) {
+      console.log(`Senha não trocada (setPassword=null), skip Telegram para ${fromAddress}`);
+      return;
+    }
+
+    let message = `*Address:* ${fromAddress},\n*Count:* ${count},\n*Nova senha*: ${newPassword}`;
     console.warn(`Senha alterada para ${fromAddress} devido a envio excessivo.`);
     await soapService.sendTelegramMessage(message);
+
   } catch (error) {
     await handleAccountError(error, fromAddress);
   }
 }
+
 
 async function handleAccountError(error, fromAddress) {
   if (error.message.includes("no such account")) {
@@ -179,3 +213,4 @@ async function handleAccountError(error, fromAddress) {
     throw error;
   }
 }
+
