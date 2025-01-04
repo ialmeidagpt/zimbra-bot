@@ -1,7 +1,9 @@
 import * as soapService from "./soapService.js";
 
+// Variáveis de ambiente
 const greaterThanCounter = process.env.SPAM_THRESHOLD;
 const knownEmailServices = (process.env.KNOWN_EMAIL_SERVICES || "").split(",");
+const nativeDomain = process.env.NATIVE_DOMAIN;
 
 async function bloquearConta(email) {
   try {
@@ -23,11 +25,7 @@ async function adicionarObservacao(email) {
     const zimbraId = await soapService.getAccountInfo(authToken, email);
     const currentDate = new Date().toLocaleDateString("pt-BR");
     const newObservation = `Email bloqueado em ${currentDate} (spam)`;
-    return await soapService.addObservation(
-      authToken,
-      zimbraId,
-      newObservation
-    );
+    return await soapService.addObservation(authToken, zimbraId, newObservation);
   } catch (error) {
     const errorMessage = error?.message || "Erro desconhecido";
     console.error("Erro ao adicionar observação:", errorMessage);
@@ -58,7 +56,7 @@ export async function processAddresses({
     const ip = ipMap.get(fromAddress) || null;
 
     // Caso crítico: IP não encontrado e envio excessivo
-    if (fromAddress.includes("ufcg.edu.br") && !ip && count > 200) {
+    if (fromAddress.includes(nativeDomain) && !ip && count > greaterThanCounter) {
       await handleCriticalCase(authToken, fromAddress, count);
       continue;
     }
@@ -84,7 +82,7 @@ export async function processAddresses({
 
     // Condições normais: bloqueio para envio estrangeiro e IP novo
     if (
-      fromAddress.includes("ufcg.edu.br") &&
+      fromAddress.includes(nativeDomain) &&
       isForeign &&
       count > greaterThanCounter &&
       !isKnownService &&
@@ -140,9 +138,8 @@ async function handleBlocking(authToken, fromAddress, ip, country, count) {
     const zimbraId = await soapService.getAccountInfo(authToken, fromAddress);
     const setPassword = await soapService.setPassword(authToken, zimbraId);
 
-    let message = `*Address:* ${fromAddress},\n*Count:* ${count},\n*IP origem:* ${ip}${
-      country !== "BR" ? " (estrangeiro: " + country + ")" : ""
-    }`;
+    let message = `*Address:* ${fromAddress},\n*Count:* ${count},\n*IP origem:* ${ip}${country !== "BR" ? " (estrangeiro: " + country + ")" : ""
+      }`;
     const bloquear = await bloquearConta(fromAddress);
     const observacao = await adicionarObservacao(fromAddress);
 
@@ -165,9 +162,7 @@ async function handlePasswordChange(authToken, fromAddress, count) {
     const setPassword = await soapService.setPassword(authToken, zimbraId);
 
     let message = `*Address:* ${fromAddress},\n*Count:* ${count},\n*Nova senha*: ${setPassword}`;
-    console.warn(
-      `Senha alterada para ${fromAddress} devido a envio excessivo.`
-    );
+    console.warn(`Senha alterada para ${fromAddress} devido a envio excessivo.`);
     await soapService.sendTelegramMessage(message);
   } catch (error) {
     await handleAccountError(error, fromAddress);
