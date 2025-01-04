@@ -3,7 +3,7 @@ import * as soapService from "./soapService.js";
 // Variáveis de ambiente
 const greaterThanCounter = process.env.SPAM_THRESHOLD;
 const knownEmailServices = (process.env.KNOWN_EMAIL_SERVICES || "").split(",");
-const nativeDomain = process.env.NATIVE_DOMAIN;
+const nativeDomain = process.env.NATIVE_DOMAIN || "";
 
 async function bloquearConta(email) {
   try {
