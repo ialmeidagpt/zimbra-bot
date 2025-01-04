@@ -83,17 +83,16 @@ function generateRandomPassword() {
  */
 export async function sendSoapRequest(data) {
   try {
-    const response = await axios.request({
-      ...config,
-      data: data,
-    });
+    const response = await axios.request({ ...config, data });
     const parsedResponse = await xml2js.parseStringPromise(response.data);
     return parsedResponse;
   } catch (error) {
     console.log(error);
     const errorMessage = formatError(error);
     await handleError(errorMessage);
-    throw new Error("SOAP request failed");
+    // ao invés de `throw new Error("SOAP request failed")`, 
+    // relançamos o *mesmo* error do Axios, mantendo 'error.response.data'
+    throw error;
   }
 }
 
@@ -155,12 +154,8 @@ export async function getAccountInfo(authToken, email) {
       console.log(`No such account for email: ${email}`);
       return null;
     }
-    const errorMessage = formatError(error);
-    await handleError(errorMessage);
-    console.log(error);
-    // Se for outro erro, retornamos null ou lançamos?
-    // Aqui retornamos null para evitar lançar stacktrace.
-    return null;
+    // Caso contrário, lance de novo
+    throw error;
   }
 }
 
