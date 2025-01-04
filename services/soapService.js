@@ -2,13 +2,16 @@ import "dotenv/config";
 import axios from "axios";
 import xml2js from "xml2js";
 import { Telegraf } from "telegraf";
-import https from "https"; 
+import https from "https";
 
 // Telegram
 const TOKEN = process.env.TOKEN_ID;
 const CHAT_ID = process.env.CHAT_ID;
 const bot = new Telegraf(TOKEN);
 
+/**
+ * Envia mensagem formatada para o Telegram.
+ */
 export async function sendTelegramMessage(message) {
   try {
     const formattedMessage = `*Monitoramento Fila do Zimbra* ${process.env.HOSTNAME}\n\n${message}`;
@@ -35,6 +38,9 @@ const config = {
   }),
 };
 
+/**
+ * Obtem geolocalização de um IP usando ipinfo.io, com até 3 tentativas.
+ */
 export async function getGeolocation(ip, retries = 3) {
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
@@ -58,6 +64,9 @@ export async function getGeolocation(ip, retries = 3) {
   }
 }
 
+/**
+ * Gera uma senha aleatória entre 8 e 12 caracteres.
+ */
 function generateRandomPassword() {
   const length = Math.floor(Math.random() * (12 - 8 + 1)) + 8;
   const charset =
@@ -69,7 +78,9 @@ function generateRandomPassword() {
   return password;
 }
 
-// Função para enviar requisição SOAP e retornar o valor
+/**
+ * Envia requisição SOAP genérica.
+ */
 export async function sendSoapRequest(data) {
   try {
     const response = await axios.request({
@@ -86,6 +97,9 @@ export async function sendSoapRequest(data) {
   }
 }
 
+/**
+ * Faz autenticação e retorna o token de admin.
+ */
 export async function makeAuthRequest() {
   let authData = `<soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope" xmlns="urn:zimbra">
   <soap:Header/>
@@ -101,7 +115,7 @@ export async function makeAuthRequest() {
     const parsedResponse = await sendSoapRequest(authData);
     const authToken =
       parsedResponse["soap:Envelope"]["soap:Body"][0]["AuthResponse"][0][
-        "authToken"
+      "authToken"
       ][0];
     return authToken;
   } catch (error) {
@@ -112,6 +126,9 @@ export async function makeAuthRequest() {
   }
 }
 
+/**
+ * Retorna o zimbraId de um e-mail. Se a conta não existir, retorna null.
+ */
 export async function getAccountInfo(authToken, email) {
   let data = `<soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope" xmlns="urn:zimbraAdmin">
   <soap:Header>
@@ -133,13 +150,30 @@ export async function getAccountInfo(authToken, email) {
     ][0]["a"].find((attr) => attr["$"].n === "zimbraId")["_"];
     return zimbraId;
   } catch (error) {
+    // Se for "no such account", retornamos null ao invés de lançar erro
+    if (error?.response?.data?.includes("no such account")) {
+      console.log(`No such account for email: ${email}`);
+      return null;
+    }
     const errorMessage = formatError(error);
     await handleError(errorMessage);
     console.log(error);
+    // Se for outro erro, retornamos null ou lançamos?
+    // Aqui retornamos null para evitar lançar stacktrace.
+    return null;
   }
 }
 
+/**
+ * Define nova senha para uma conta. Se zimbraId vier null/undefined, apenas ignora.
+ */
 export async function setPassword(authToken, zimbraId) {
+  // Se zimbraId for null, não chamamos SOAP (evitando erro 500).
+  if (!zimbraId) {
+    console.log("setPassword: zimbraId é nulo ou indefinido, ignorando requisição SOAP...");
+    return null;
+  }
+
   const newPassword = await generateRandomPassword();
   let data = `<soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope" xmlns="urn:zimbraAdmin">
   <soap:Header>
@@ -154,18 +188,23 @@ export async function setPassword(authToken, zimbraId) {
 
   try {
     const parsedResponse = await sendSoapRequest(data);
+    // Se a resposta não tiver nada, retornamos a nova senha mesmo assim
     const message =
       parsedResponse["soap:Envelope"]?.["soap:Body"]?.[0]?.[
-        "GetMailQueueResponse"
+      "GetMailQueueResponse"
       ]?.[0]?.["message"]?.[0] || newPassword;
     return message;
   } catch (error) {
     const errorMessage = formatError(error);
     await handleError(errorMessage);
     console.log(error);
+    return null;
   }
 }
 
+/**
+ * Obtém a fila de e-mails no Zimbra.
+ */
 export async function getMailQueue(authToken, serverName) {
   let data = `<soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope" xmlns="urn:zimbraAdmin">
   <soap:Header>
@@ -189,7 +228,7 @@ export async function getMailQueue(authToken, serverName) {
     const parsedResponse = await sendSoapRequest(data);
     const mailQueue =
       parsedResponse["soap:Envelope"]["soap:Body"][0][
-        "GetMailQueueResponse"
+      "GetMailQueueResponse"
       ][0]["server"][0]["queue"][0];
     return mailQueue;
   } catch (error) {
@@ -199,18 +238,20 @@ export async function getMailQueue(authToken, serverName) {
   }
 }
 
-// Função auxiliar para formatar o erro
+/**
+ * Formata o erro para exibição (tanto em log quanto no Telegram).
+ */
 export function formatError(error) {
   const cause = error.cause || error;
 
   // Extraindo partes relevantes do erro
   const shortError = {
-    message: cause.message || "Mensagem não disponível",
-    errno: cause.errno || "N/A",
-    code: cause.code || "N/A",
-    syscall: cause.syscall || "N/A",
-    address: cause.address || "N/A",
-    port: cause.port || "N/A",
+    message: cause?.message || "Mensagem não disponível",
+    errno: cause?.errno || "N/A",
+    code: cause?.code || "N/A",
+    syscall: cause?.syscall || "N/A",
+    address: cause?.address || "N/A",
+    port: cause?.port || "N/A",
   };
 
   // Formatando a mensagem de erro para o Telegram
@@ -224,12 +265,14 @@ export function formatError(error) {
   `;
 }
 
-// Armazenamento de mensagens enviadas recentemente
+// Armazenamento de mensagens enviadas recentemente (para evitar spam de erros repetidos)
 const recentMessages = new Map();
 
+/**
+ * Trata o erro, enviando pelo Telegram se não for repetido (últimos 10 minutos).
+ */
 export async function handleError(error) {
   const errorMessage = formatError(error).trim();
-
   const causeMessage = error.cause ? error.cause.message : error.message;
   const currentTime = Date.now();
   const tenMinutesAgo = currentTime - 10 * 60 * 1000;
@@ -241,7 +284,7 @@ export async function handleError(error) {
     }
   }
 
-  // Verificar se a mensagem já foi enviada nos últimos 10 minutos
+  // Verificar se a mensagem já foi enviada nos últimos 10 minutos ou se é genérica (N/A)
   if (recentMessages.has(causeMessage) || errorMessage.includes("N/A")) {
     console.log(
       "Mensagem repetida ou indefinida detectada, não enviando via Telegram"
@@ -256,7 +299,16 @@ export async function handleError(error) {
   await sendTelegramMessage(errorMessage);
 }
 
+/**
+ * Bloqueia uma conta (zimbraAccountStatus = locked).
+ */
 export async function setAccountStatusBlocked(authToken, zimbraId) {
+  // Se zimbraId for null, não chamamos SOAP (evitando erro 500).
+  if (!zimbraId) {
+    console.log("setAccountStatusBlocked: zimbraId é nulo/undefined, ignorando bloqueio...");
+    return null;
+  }
+
   let data = `<soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope" xmlns="urn:zimbraAdmin">
   <soap:Header>
     <context xmlns="urn:zimbra">
@@ -286,8 +338,17 @@ export async function setAccountStatusBlocked(authToken, zimbraId) {
   }
 }
 
+/**
+ * Adiciona observação (zimbraNotes) na conta.
+ */
 export async function addObservation(authToken, zimbraId, newObservation) {
   try {
+    // Se zimbraId for null, não chamamos SOAP.
+    if (!zimbraId) {
+      console.log("addObservation: zimbraId é nulo/undefined, ignorando alteração de notas...");
+      return null;
+    }
+
     // Etapa 1: Obter a observação atual
     let getAccountData = `<soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope" xmlns="urn:zimbraAdmin">
     <soap:Header>
@@ -307,7 +368,7 @@ export async function addObservation(authToken, zimbraId, newObservation) {
     // Buscar o atributo "zimbraNotes" no array de atributos
     const attributes =
       accountResponse?.["soap:Envelope"]?.["soap:Body"]?.[0]?.[
-        "GetAccountResponse"
+      "GetAccountResponse"
       ]?.[0]?.["account"]?.[0]?.["a"] || [];
     const existingNotes =
       attributes.find((attr) => attr["$"]?.n === "zimbraNotes")?._ || "";
