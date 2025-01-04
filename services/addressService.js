@@ -95,7 +95,12 @@ export async function processAddresses({
       await handleBlocking(authToken, fromAddress, ip, country, count);
     } else if (action === "changePassword") {
       await handlePasswordChange(authToken, fromAddress, count);
+    } else if (action === "internalWarn") {
+      // <<< Chama a nova função que apenas avisa
+      await handleInternalWarn(authToken, fromAddress, count);
     }
+    // Se action === "none", não faz nada
+
     // Se action === "none", não faz nada.
 
     // Atualiza o array de IPs do fromAddress (caso seja novo).
@@ -220,7 +225,7 @@ async function handleAccountError(error, fromAddress) {
   }
 }
 
-// Nova função que retorna "critical", "block", "changePassword" ou "none"
+// Nova função que retorna "critical", "block", "changePassword", "internalWarn" ou "none"
 function classifyRemetente({
   fromAddress,
   count,
@@ -256,7 +261,25 @@ function classifyRemetente({
     return "changePassword"; // handlePasswordChange
   }
 
+  // >>> NOVO: apenas "avisar" se for do domínio e count > 100
+  // (ajuste esse valor conforme desejar)
+  if (
+    fromAddress.includes(nativeDomain) &&
+    count > greaterThanCounter
+  ) {
+    return "internalWarn";
+  }
+
   // Se nenhuma condição especial, não faz nada
   return "none";
+}
+
+async function handleInternalWarn(authToken, fromAddress, count) {
+  // Simplesmente envia uma mensagem de “aviso”
+  let message = `*Aviso*: A conta interna \`${fromAddress}\` já enviou *${count}* e-mails.\n` +
+    `Verifique se é spam ou se é um envio legítimo.`;
+
+  console.warn(`Aviso: ${fromAddress} já enviou ${count} e-mails (domínio interno).`);
+  await soapService.sendTelegramMessage(message);
 }
 
