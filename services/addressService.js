@@ -54,13 +54,6 @@ export async function processAddresses({
     }
 
     const ip = ipMap.get(fromAddress) || null;
-
-    // Caso crítico: IP não encontrado e envio excessivo
-    if (fromAddress.includes(nativeDomain) && !ip && count > greaterThanCounter) {
-      await handleCriticalCase(authToken, fromAddress, count);
-      continue;
-    }
-
     const geoData = ip ? await soapService.getGeolocation(ip) : null;
     const country = geoData ? geoData.country : "unknown";
     const isForeign = country !== "BR";
@@ -76,29 +69,42 @@ export async function processAddresses({
 
     const isIpNew = ip && !addressIpData[fromAddress].includes(ip);
 
+    // Logando apenas as infos principais
     console.log(
-      `fromAddress: ${fromAddress}, isForeign: ${isForeign}, greaterThanCounter > ${greaterThanCounter}: ${count}, isKnownService: ${isKnownService}, isIpNew: ${isIpNew}`
+      `fromAddress: ${fromAddress}, isForeign: ${isForeign}, ` +
+      `greaterThanCounter > ${greaterThanCounter}: ${count}, ` +
+      `isKnownService: ${isKnownService}, isIpNew: ${isIpNew}`
     );
 
-    // Condições normais: bloqueio para envio estrangeiro e IP novo
-    if (
-      fromAddress.includes(nativeDomain) &&
-      isForeign &&
-      count > greaterThanCounter &&
-      !isKnownService &&
-      isIpNew
-    ) {
+    // >>> NOVO: classificar o remetente
+    const action = classifyRemetente({
+      fromAddress,
+      count,
+      ip,
+      isForeign,
+      isKnownService,
+      isIpNew,
+      greaterThanCounter,
+      nativeDomain,
+    });
+
+    // >>> Chama a ação correspondente
+    if (action === "critical") {
+      await handleCriticalCase(authToken, fromAddress, count);
+    } else if (action === "block") {
       await handleBlocking(authToken, fromAddress, ip, country, count);
-    } else if (count > greaterThanCounter) {
-      // Caso alternativo: apenas troca a senha
+    } else if (action === "changePassword") {
       await handlePasswordChange(authToken, fromAddress, count);
     }
+    // Se action === "none", não faz nada.
 
+    // Atualiza o array de IPs do fromAddress (caso seja novo).
     if (isIpNew && ip) {
       addressIpData[fromAddress].push(ip);
     }
   }
 }
+
 
 function mapIPs(qiList) {
   const ipMap = new Map();
@@ -212,5 +218,45 @@ async function handleAccountError(error, fromAddress) {
   } else {
     throw error;
   }
+}
+
+// Nova função que retorna "critical", "block", "changePassword" ou "none"
+function classifyRemetente({
+  fromAddress,
+  count,
+  ip,
+  isForeign,
+  isKnownService,
+  isIpNew,
+  greaterThanCounter,
+  nativeDomain,
+}) {
+  // Caso crítico: IP não encontrado e envio excessivo
+  if (
+    fromAddress.includes(nativeDomain) &&
+    !ip &&
+    count > greaterThanCounter
+  ) {
+    return "critical"; // handleCriticalCase
+  }
+
+  // Condições normais: bloqueio para envio estrangeiro e IP novo
+  if (
+    fromAddress.includes(nativeDomain) &&
+    isForeign &&
+    count > greaterThanCounter &&
+    !isKnownService &&
+    isIpNew
+  ) {
+    return "block"; // handleBlocking
+  }
+
+  // Caso alternativo: apenas troca a senha
+  if (count > greaterThanCounter) {
+    return "changePassword"; // handlePasswordChange
+  }
+
+  // Se nenhuma condição especial, não faz nada
+  return "none";
 }
 
