@@ -211,8 +211,7 @@ export async function getMailQueue(authToken, serverName) {
     <GetMailQueueRequest>
       <server name="${serverName}">
         <queue name="deferred" scan="1" wait="5">
-          <query offset="0" limit="50">
-          </query>
+          <query offset="0" limit="50"></query>
         </queue>
       </server>
     </GetMailQueueRequest>
@@ -227,11 +226,17 @@ export async function getMailQueue(authToken, serverName) {
       ][0]["server"][0]["queue"][0];
     return mailQueue;
   } catch (error) {
+    if (error?.response?.data?.includes("service.ALREADY_IN_PROGRESS")) {
+      console.log("Operação já em progresso no servidor.");
+      return null; // Retorna null para não interromper o fluxo
+    }
     const errorMessage = formatError(error);
     await handleError(errorMessage);
     console.log(error);
+    throw new Error("Falha ao obter a fila de e-mails.");
   }
 }
+
 
 /**
  * Formata o erro para exibição (tanto em log quanto no Telegram).
