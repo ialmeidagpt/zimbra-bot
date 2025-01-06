@@ -199,6 +199,7 @@ export async function setPassword(authToken, zimbraId) {
 
 /**
  * Obtém a fila de e-mails no Zimbra.
+ * https://files.zimbra.com/docs/soap_api/8.6.0/api-reference/index.html
  */
 export async function getMailQueue(authToken, serverName) {
   let data = `<soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope" xmlns="urn:zimbraAdmin">
@@ -210,7 +211,7 @@ export async function getMailQueue(authToken, serverName) {
   <soap:Body>
     <GetMailQueueRequest>
       <server name="${serverName}">
-        <queue name="deferred" scan="1" wait="5">
+        <queue name="deferred" scan="0" wait="5">
           <query offset="0" limit="50"></query>
         </queue>
       </server>
