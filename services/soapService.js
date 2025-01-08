@@ -211,7 +211,7 @@ export async function getMailQueue(authToken, serverName) {
   <soap:Body>
     <GetMailQueueRequest>
       <server name="${serverName}">
-        <queue name="deferred" scan="0" wait="5">
+        <queue name="deferred" scan="1" wait="15">
           <query offset="0" limit="50"></query>
         </queue>
       </server>
