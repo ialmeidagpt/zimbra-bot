@@ -1,10 +1,11 @@
 import * as soapService from "./soapService.js";
 
 // Variáveis de ambiente
-const greaterThanCounter = process.env.SPAM_THRESHOLD;
+const greaterThanCounter = Number(process.env.SPAM_THRESHOLD); // Garantir que seja numérico
 const knownEmailServices = (process.env.KNOWN_EMAIL_SERVICES || "").split(",");
 const nativeDomain = process.env.NATIVE_DOMAIN || "";
 
+// Função para bloquear conta
 async function bloquearConta(email) {
   try {
     const authToken = await soapService.makeAuthRequest();
@@ -19,6 +20,7 @@ async function bloquearConta(email) {
   }
 }
 
+// Função para adicionar observação
 async function adicionarObservacao(email) {
   try {
     const authToken = await soapService.makeAuthRequest();
@@ -35,6 +37,7 @@ async function adicionarObservacao(email) {
   }
 }
 
+// Função principal para processar endereços
 export async function processAddresses({
   qsFrom,
   qiList,
@@ -46,7 +49,7 @@ export async function processAddresses({
 
   for (const qsi of qsiList) {
     const fromAddress = qsi.$.t;
-    const count = qsi.$.n;
+    const count = Number(qsi.$.n); // Garantir que count seja numérico
 
     if (!fromAddress.includes("@")) {
       console.log(`Invalid email address: ${fromAddress}, skipping...`);
@@ -69,14 +72,16 @@ export async function processAddresses({
 
     const isIpNew = ip && !addressIpData[fromAddress].includes(ip);
 
-    // Logando apenas as infos principais
-    console.log(
-      `fromAddress: ${fromAddress}, isForeign: ${isForeign}, ` +
-      `greaterThanCounter > ${greaterThanCounter}: ${count}, ` +
-      `isKnownService: ${isKnownService}, isIpNew: ${isIpNew}`
-    );
+    // Logs detalhados
+    console.log({
+      fromAddress,
+      count,
+      greaterThanCounter,
+      isForeign,
+      isKnownService,
+      isIpNew,
+    });
 
-    // >>> NOVO: classificar o remetente
     const action = classifyRemetente({
       fromAddress,
       count,
@@ -88,29 +93,32 @@ export async function processAddresses({
       nativeDomain,
     });
 
-    // >>> Chama a ação correspondente
-    if (action === "critical") {
-      await handleCriticalCase(authToken, fromAddress, count);
-    } else if (action === "block") {
-      await handleBlocking(authToken, fromAddress, ip, country, count);
-    } else if (action === "changePassword") {
-      await handlePasswordChange(authToken, fromAddress, count);
-    } else if (action === "internalWarn") {
-      // <<< Chama a nova função que apenas avisa
-      await handleInternalWarn(authToken, fromAddress, count);
+    // Executar a ação correspondente
+    switch (action) {
+      case "critical":
+        await handleCriticalCase(authToken, fromAddress, count);
+        break;
+      case "block":
+        await handleBlocking(authToken, fromAddress, ip, country, count);
+        break;
+      case "changePassword":
+        await handlePasswordChange(authToken, fromAddress, count);
+        break;
+      case "internalWarn":
+        await handleInternalWarn(authToken, fromAddress, count);
+        break;
+      default:
+        console.log(`Nenhuma ação necessária para: ${fromAddress}`);
     }
-    // Se action === "none", não faz nada
 
-    // Se action === "none", não faz nada.
-
-    // Atualiza o array de IPs do fromAddress (caso seja novo).
+    // Atualizar IPs do endereço
     if (isIpNew && ip) {
       addressIpData[fromAddress].push(ip);
     }
   }
 }
 
-
+// Mapeamento de IPs
 function mapIPs(qiList) {
   const ipMap = new Map();
   qiList.forEach((qi) => {
@@ -123,12 +131,13 @@ function mapIPs(qiList) {
   return ipMap;
 }
 
+// Lidar com casos críticos
 async function handleCriticalCase(authToken, fromAddress, count) {
   try {
     const zimbraId = await soapService.getAccountInfo(authToken, fromAddress);
 
     if (!zimbraId) {
-      console.log(`Conta inexistente para handleCriticalCase: ${fromAddress}, não trocando senha nem bloqueando.`);
+      console.log(`Conta inexistente para handleCriticalCase: ${fromAddress}`);
       return;
     }
 
@@ -136,39 +145,34 @@ async function handleCriticalCase(authToken, fromAddress, count) {
     const bloquear = await bloquearConta(fromAddress);
     const observacao = await adicionarObservacao(fromAddress);
 
-    // Se newPassword for null, não faça “Nova senha: undefined”
-    let message =
-      `*Address:* ${fromAddress},\n*Count:* ${count},\n*IP origem:* IP não encontrado (CRÍTICO).`;
+    let message = `*Address:* ${fromAddress},\n*Count:* ${count},\n*IP origem:* IP não encontrado (CRÍTICO).`;
 
     if (newPassword) {
       message += `,\n*Nova senha*: ${newPassword}`;
     }
-    message += `,\n*Bloqueado*: ${bloquear},`;
-    message += `\n*Observação*: ${observacao}`;
+    message += `,\n*Bloqueado*: ${bloquear},\n*Observação*: ${observacao}`;
 
-    console.warn(
-      `Bloqueio e alteração de senha para ${fromAddress} devido a envio excessivo e IP não encontrado.`
-    );
+    console.warn(`Ação crítica executada para ${fromAddress}`);
     await soapService.sendTelegramMessage(message);
-
   } catch (error) {
     await handleAccountError(error, fromAddress);
   }
 }
 
-
+// Lidar com bloqueio
 async function handleBlocking(authToken, fromAddress, ip, country, count) {
   try {
     const zimbraId = await soapService.getAccountInfo(authToken, fromAddress);
 
     if (!zimbraId) {
-      console.log(`Conta inexistente para handleBlocking: ${fromAddress}, não trocando senha nem bloqueando.`);
+      console.log(`Conta inexistente para handleBlocking: ${fromAddress}`);
       return;
     }
 
     const newPassword = await soapService.setPassword(authToken, zimbraId);
 
-    let message = `*Address:* ${fromAddress},\n*Count:* ${count},\n*IP origem:* ${ip}${country !== "BR" ? " (estrangeiro: " + country + ")" : ""}`;
+    let message = `*Address:* ${fromAddress},\n*Count:* ${count},\n*IP origem:* ${ip}${country !== "BR" ? ` (estrangeiro: ${country})` : ""
+      }`;
 
     const bloquear = await bloquearConta(fromAddress);
     const observacao = await adicionarObservacao(fromAddress);
@@ -176,44 +180,40 @@ async function handleBlocking(authToken, fromAddress, ip, country, count) {
     if (newPassword) {
       message += `,\n*Nova senha*: ${newPassword}`;
     }
-    message += `,\n*Bloqueado*: ${bloquear}`;
-    message += `,\n*Observação*: ${observacao}`;
+    message += `,\n*Bloqueado*: ${bloquear},\n*Observação*: ${observacao}`;
 
+    console.warn(`Conta bloqueada: ${fromAddress}`);
     await soapService.sendTelegramMessage(message);
   } catch (error) {
     await handleAccountError(error, fromAddress);
   }
 }
 
-
+// Lidar com troca de senha
 async function handlePasswordChange(authToken, fromAddress, count) {
   try {
     const zimbraId = await soapService.getAccountInfo(authToken, fromAddress);
 
-    // Se não existe a conta (zimbraId == null), saia sem trocar senha
     if (!zimbraId) {
-      console.log(`Conta inexistente, não faz handlePasswordChange: ${fromAddress}`);
+      console.log(`Conta inexistente para handlePasswordChange: ${fromAddress}`);
       return;
     }
 
     const newPassword = await soapService.setPassword(authToken, zimbraId);
-
-    // Se a função setPassword retornou null, também não envia mensagem
     if (!newPassword) {
-      console.log(`Senha não trocada (setPassword=null), skip Telegram para ${fromAddress}`);
+      console.log(`Senha não trocada para: ${fromAddress}`);
       return;
     }
 
     let message = `*Address:* ${fromAddress},\n*Count:* ${count},\n*Nova senha*: ${newPassword}`;
-    console.warn(`Senha alterada para ${fromAddress} devido a envio excessivo.`);
+    console.warn(`Senha alterada para ${fromAddress}`);
     await soapService.sendTelegramMessage(message);
-
   } catch (error) {
     await handleAccountError(error, fromAddress);
   }
 }
 
-
+// Lidar com erros de conta
 async function handleAccountError(error, fromAddress) {
   if (error.message.includes("no such account")) {
     console.log(`No such account for email: ${fromAddress}`);
@@ -225,7 +225,7 @@ async function handleAccountError(error, fromAddress) {
   }
 }
 
-// Nova função que retorna "critical", "block", "changePassword", "internalWarn" ou "none"
+// Classificar remetente
 function classifyRemetente({
   fromAddress,
   count,
@@ -236,16 +236,10 @@ function classifyRemetente({
   greaterThanCounter,
   nativeDomain,
 }) {
-  // Caso crítico: IP não encontrado e envio excessivo
-  if (
-    fromAddress.includes(nativeDomain) &&
-    !ip &&
-    count > greaterThanCounter
-  ) {
-    return "critical"; // handleCriticalCase
+  if (fromAddress.includes(nativeDomain) && !ip && count > greaterThanCounter) {
+    return "critical";
   }
 
-  // Condições normais: bloqueio para envio estrangeiro e IP novo
   if (
     fromAddress.includes(nativeDomain) &&
     isForeign &&
@@ -253,33 +247,24 @@ function classifyRemetente({
     !isKnownService &&
     isIpNew
   ) {
-    return "block"; // handleBlocking
+    return "block";
   }
 
-  // Caso alternativo: apenas troca a senha
   if (count > greaterThanCounter) {
-    return "changePassword"; // handlePasswordChange
+    return "changePassword";
   }
 
-  // >>> NOVO: apenas "avisar" se for do domínio e count > 100
-  // (ajuste esse valor conforme desejar)
-  if (
-    fromAddress.includes(nativeDomain) &&
-    count > greaterThanCounter
-  ) {
+  if (fromAddress.includes(nativeDomain) && count > greaterThanCounter) {
     return "internalWarn";
   }
 
-  // Se nenhuma condição especial, não faz nada
   return "none";
 }
 
+// Enviar aviso interno
 async function handleInternalWarn(authToken, fromAddress, count) {
-  // Simplesmente envia uma mensagem de “aviso”
-  let message = `*Aviso*: A conta interna \`${fromAddress}\` já enviou *${count}* e-mails.\n` +
-    `Verifique se é spam ou se é um envio legítimo.`;
+  let message = `*Aviso*: A conta interna \`${fromAddress}\` já enviou *${count}* e-mails.\nVerifique se é spam ou envio legítimo.`;
 
-  console.warn(`Aviso: ${fromAddress} já enviou ${count} e-mails (domínio interno).`);
+  console.warn(`Aviso interno: ${fromAddress} já enviou ${count} e-mails.`);
   await soapService.sendTelegramMessage(message);
 }
-
