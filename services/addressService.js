@@ -4,6 +4,7 @@ import * as soapService from "./soapService.js";
 const greaterThanCounter = Number(process.env.SPAM_THRESHOLD); // Garantir que seja numérico
 const knownEmailServices = (process.env.KNOWN_EMAIL_SERVICES || "").split(",");
 const nativeDomain = process.env.NATIVE_DOMAIN || "";
+const ignoredEmails = (process.env.IGNORED_EMAILS || "").split(",").map(email => email.trim());
 
 // Função para bloquear conta
 async function bloquearConta(email) {
@@ -50,6 +51,12 @@ export async function processAddresses({
   for (const qsi of qsiList) {
     const fromAddress = qsi.$.t;
     const count = Number(qsi.$.n); // Garantir que count seja numérico
+
+    // Ignorar e-mails listados em IGNORED_EMAILS
+    if (ignoredEmails.includes(fromAddress)) {
+      console.log(`Ignored email address: ${fromAddress}, skipping...`);
+      continue;
+    }
 
     if (!fromAddress.includes("@")) {
       console.log(`Invalid email address: ${fromAddress}, skipping...`);
