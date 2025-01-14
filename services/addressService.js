@@ -5,6 +5,7 @@ const greaterThanCounter = Number(process.env.SPAM_THRESHOLD); // Garantir que s
 const knownEmailServices = (process.env.KNOWN_EMAIL_SERVICES || "").split(",");
 const nativeDomain = process.env.NATIVE_DOMAIN || "";
 const ignoredEmails = (process.env.IGNORED_EMAILS || "").split(",").map(email => email.trim());
+const ipThreshold = Number(process.env.IP_THRESHOLD || 1);
 
 // Função para bloquear conta
 async function bloquearConta(email) {
@@ -61,6 +62,20 @@ export async function processAddresses({
     if (!fromAddress.includes("@")) {
       console.log(`Invalid email address: ${fromAddress}, skipping...`);
       continue;
+    }
+
+    // Verificar múltiplos IPs associados no addressIpData
+    if (addressIpData[fromAddress] && addressIpData[fromAddress].length > ipThreshold) {
+      console.log(
+        `Bloqueando ${fromAddress} por ter múltiplos IPs associados no addressIpData.`
+      );
+      const ip = addressIpData[fromAddress][
+        addressIpData[fromAddress].length - 1
+      ]; // Pega o último IP associado
+      const geoData = await soapService.getGeolocation(ip); // Obtém dados do IP para mensagem
+      const country = geoData ? geoData.country : "unknown";
+      await handleBlocking(authToken, fromAddress, ip, country, count);
+      continue; // Ignorar processamento adicional após o bloqueio
     }
 
     const ip = ipMap.get(fromAddress) || null;
