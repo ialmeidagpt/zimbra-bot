@@ -71,12 +71,12 @@ export async function processAddresses({
       );
 
       // Verificar se o e-mail já está bloqueado para evitar trocas repetidas de senha
-      const zimbraId = await soapService.getAccountInfo(authToken, fromAddress);
-      console.log(zimbraId)
-      if (!zimbraId) {
-        console.log(`Conta ${fromAddress} já está bloqueada, ignorando troca de senha.`);
-        continue;
-      }
+      // const zimbraId = await soapService.getAccountInfo(authToken, fromAddress);
+      // console.log(zimbraId)
+      // if (!zimbraId) {
+      //   console.log(`Conta ${fromAddress} já está bloqueada, ignorando troca de senha.`);
+      //   continue;
+      // }
 
       const ip = addressIpData[fromAddress][
         addressIpData[fromAddress].length - 1

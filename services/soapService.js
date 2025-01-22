@@ -406,3 +406,59 @@ export async function addObservation(authToken, zimbraId, newObservation) {
     throw new Error("Falha ao adicionar observação.");
   }
 }
+
+export async function getAccountAttributes(authToken, zimbraId) {
+  const getAccountData = `
+    <soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope" xmlns="urn:zimbraAdmin">
+      <soap:Header>
+        <context xmlns="urn:zimbra">
+          <authToken>${authToken}</authToken>
+        </context>
+      </soap:Header>
+      <soap:Body>
+        <GetAccountRequest attrs="zimbraAccountStatus">
+          <account by="id">${zimbraId}</account>
+        </GetAccountRequest>
+      </soap:Body>
+    </soap:Envelope>
+  `;
+
+  try {
+    console.log("Enviando solicitação SOAP para obter status da conta...");
+    console.log(`zimbraId: ${zimbraId}`);
+
+    const accountResponse = await sendSoapRequest(getAccountData);
+
+    console.log("Resposta do servidor:", JSON.stringify(accountResponse, null, 2));
+
+    // Verifica se houve erro SOAP
+    if (accountResponse?.["soap:Envelope"]?.["soap:Body"]?.[0]?.["soap:Fault"]) {
+      throw new Error(
+        "Erro SOAP: " + JSON.stringify(accountResponse["soap:Envelope"]["soap:Body"][0]["soap:Fault"])
+      );
+    }
+
+    // Buscar os atributos da conta
+    const attributes =
+      accountResponse?.["soap:Envelope"]?.["soap:Body"]?.[0]?.[
+      "GetAccountResponse"
+      ]?.[0]?.["account"]?.[0]?.["a"] || [];
+
+    // Buscar o atributo "zimbraAccountStatus"
+    const accountStatus =
+      attributes.find((attr) => attr["$"]?.n === "zimbraAccountStatus")?._ || null;
+
+    if (!accountStatus) {
+      throw new Error("Atributo 'zimbraAccountStatus' não encontrado na resposta.");
+    }
+
+    return accountStatus; // Retorna apenas o status da conta
+
+  } catch (error) {
+    console.error(
+      "Erro ao obter o status da conta:",
+      error?.message || "Erro desconhecido"
+    );
+    return null;
+  }
+}
