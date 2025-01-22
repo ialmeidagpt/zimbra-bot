@@ -64,19 +64,24 @@ export async function processAddresses({
       continue;
     }
 
-    // Verificar múltiplos IPs associados no addressIpData
+    // ✅ Verificar se a conta já está bloqueada antes de continuar
+    const zimbraId = await soapService.getAccountInfo(authToken, fromAddress);
+    if (zimbraId) {
+      const accountStatus = await soapService.getAccountAttributes(authToken, zimbraId);
+      if (accountStatus === "locked") {
+        console.log(`Conta ${fromAddress} já está bloqueada, ignorando ação.`);
+        continue; // Se a conta já está bloqueada, não faz mais nada
+      }
+    } else {
+      console.log(`Conta ${fromAddress} não encontrada no Zimbra.`);
+      continue; // Se a conta não existe, ignoramos
+    }
+
+    // ✅ Verificar múltiplos IPs associados no addressIpData
     if (addressIpData[fromAddress] && addressIpData[fromAddress].length > ipThreshold) {
       console.log(
         `Bloqueando ${fromAddress} por ter múltiplos IPs associados no addressIpData.`
       );
-
-      // Verificar se o e-mail já está bloqueado para evitar trocas repetidas de senha
-      // const zimbraId = await soapService.getAccountInfo(authToken, fromAddress);
-      // console.log(zimbraId)
-      // if (!zimbraId) {
-      //   console.log(`Conta ${fromAddress} já está bloqueada, ignorando troca de senha.`);
-      //   continue;
-      // }
 
       const ip = addressIpData[fromAddress][
         addressIpData[fromAddress].length - 1
@@ -124,7 +129,7 @@ export async function processAddresses({
       nativeDomain,
     });
 
-    // Executar a ação correspondente
+    // ✅ Executar a ação correspondente
     switch (action) {
       case "critical":
         await handleCriticalCase(authToken, fromAddress, count);
@@ -142,12 +147,13 @@ export async function processAddresses({
         console.log(`Nenhuma ação necessária para: ${fromAddress}`);
     }
 
-    // Atualizar IPs do endereço
+    // ✅ Atualizar IPs do endereço
     if (isIpNew && ip) {
       addressIpData[fromAddress].push(ip);
     }
   }
 }
+
 
 // Mapeamento de IPs
 function mapIPs(qiList) {
