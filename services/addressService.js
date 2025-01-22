@@ -69,6 +69,14 @@ export async function processAddresses({
       console.log(
         `Bloqueando ${fromAddress} por ter múltiplos IPs associados no addressIpData.`
       );
+
+      // Verificar se o e-mail já está bloqueado para evitar trocas repetidas de senha
+      const zimbraId = await soapService.getAccountInfo(authToken, fromAddress);
+      if (!zimbraId) {
+        console.log(`Conta ${fromAddress} já está bloqueada, ignorando troca de senha.`);
+        continue;
+      }
+
       const ip = addressIpData[fromAddress][
         addressIpData[fromAddress].length - 1
       ]; // Pega o último IP associado
